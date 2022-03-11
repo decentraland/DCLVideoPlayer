@@ -1,5 +1,5 @@
 # This is a basic workflow to help you get started with Actions
-name: CMake Build Matrix
+name: Build
 
 # Controls when the action will run. Triggers the workflow on push
 on: 
@@ -19,7 +19,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        config:
+        config: 
         - {
             name: "Ubuntu_Latest_GCC",
             os: ubuntu-latest,
@@ -29,7 +29,7 @@ jobs:
             cxx: "g++",
             archiver: "7z a",
             generators: "Ninja",
-            ffmpeg_path: "ffmpeg-static/target/"
+            prefix_path: ""
           }
         - {
             name: "macOS Latest Clang",
@@ -40,7 +40,7 @@ jobs:
             cxx: "clang++",
             archiver: "7za a",
             generators: "Ninja",
-            prefix_path: "ffmpeg-static/target/"
+            prefix_path: ""
           }
 
     steps:
@@ -51,11 +51,11 @@ jobs:
         run: |
           echo github.event.action: ${{ github.event.action }}
           echo github.event_name: ${{ github.event_name }}
+
       - name: Install dependencies on ubuntu
         if: startsWith(matrix.config.name, 'Ubuntu_Latest_GCC')
         run: |
           sudo apt-get update
-          sudo apt-get install -y ninja-build cmake p7zip-full
           sudo apt-get install -y build-essential curl tar pkg-config
           sudo apt-get -y --force-yes install \
             autoconf \
@@ -83,44 +83,19 @@ jobs:
       - name: Install dependencies on macOS
         if: startsWith(matrix.config.os, 'macos')
         run: |
-          brew install cmake automake libtool openssl p7zip ninja
-          ninja --version
+          brew install cmake automake libtool openssl
           cmake --version
-      - name: Configure and build ffmpeg
+          
+      - name: Configure and build
         shell: bash
         run: |
-          cd ffmpeg-static
           ./build.sh
-          pwd
-          ls -la
-          ls -la target
-      - name: Configure
-        shell: bash
-        run: |
-          export PKG_CONFIG_PATH="${{ matrix.config.ffmpeg_path }}/lib/pkgconfig"
-          mkdir build
-          mkdir instdir
-          cmake \
-            -S . \
-            -B . \
-            -DCMAKE_BUILD_TYPE=${{ matrix.config.build_type }} \
-            -G "${{ matrix.config.generators }}" \
-            -DCMAKE_INSTALL_PREFIX:PATH=instdir \
-            -DCMAKE_PREFIX_PATH="${{ matrix.config.prefix_path }}"
-      - name: Build
-        shell: bash
-        run: |
-          cmake --build . --config ${{ matrix.config.build_type }}
-
-      - name: Install Strip
-        shell: bash
-        run: |
-          cmake --install . --strip
 
       - name: Pack
         shell: bash
-        working-directory: instdir
+        working-directory: target
         run: |
+          pwd
           ls -laR
           ${{ matrix.config.archiver }} ../${{ matrix.config.artifact }} .
       - name: Upload
