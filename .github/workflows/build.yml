@@ -87,7 +87,7 @@ jobs:
       - name: Setup ffmpeg
         shell: bash
         run: |
-          cd path: ${{ matrix.config.ffmpeg_path }}
+          cd ${{ matrix.config.ffmpeg_path }}
           p7zip -d ${{ matrix.config.artifact }}
           ls -la .
       - name: Configure
