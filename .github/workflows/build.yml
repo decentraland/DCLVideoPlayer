@@ -66,7 +66,7 @@ jobs:
           # Optional, will use the branch
           branch: master
           name: ${{ matrix.config.artifact }}
-          path: ffmpeg
+          path: target
           repo: kuruk-mm/ffmpeg-static
           check_artifacts:  true
       - name: Install dependencies on ubuntu
@@ -84,21 +84,24 @@ jobs:
           brew install p7zip cmake ninja
           ninja --version
           cmake --version
-          
+      - name: Setup ffmpeg
+        shell: bash
+        run: |
+          cd target
+          p7zip -d ${{ matrix.config.artifact }}
+          ls -la .
       - name: Configure
         shell: bash
         run: |
-          p7zip -d ffmpeg/${{ matrix.config.artifact }}
-          ls -la ffmpeg
           export PKG_CONFIG_PATH="$(pwd)/lib/pkgconfig"
           mkdir build
-          mkdir target
+          mkdir instdir
           cmake \
             -S . \
             -B . \
             -DCMAKE_BUILD_TYPE=${{ matrix.config.build_type }} \
             -G "${{ matrix.config.generators }}" \
-            -DCMAKE_INSTALL_PREFIX:PATH=target \
+            -DCMAKE_INSTALL_PREFIX:PATH=instdir \
             -DCMAKE_PREFIX_PATH="${{ matrix.config.prefix_path }}"
       - name: Build
         shell: bash
@@ -114,7 +117,7 @@ jobs:
 
       - name: Pack
         shell: bash
-        working-directory: target
+        working-directory: instdir
         run: |
           ls -laR
           ${{ matrix.config.archiver }} ../${{ matrix.config.artifact }} .
