@@ -20,3 +20,6 @@ target_link_libraries(${PROJECT_NAME} PUBLIC PkgConfig::LIBAV)
 
 add_executable(${PROJECT_NAME}Test src/main.c)
 target_link_libraries(${PROJECT_NAME}Test PRIVATE ${PROJECT_NAME})
+
+set(installPath ${CMAKE_SYSTEM_NAME}-${CMAKE_HOST_SYSTEM_PROCESSOR})
+install(TARGETS ${PROJECT_NAME} DESTINATION ${installPath})

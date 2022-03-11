@@ -29,7 +29,7 @@ jobs:
             cxx: "g++",
             archiver: "7z a",
             generators: "Ninja",
-            ffmpeg_path: "ffmpeg-static/target/"
+            ffmpeg_path: "/home/runner/work/ffmpeg-static/ffmpeg-static/target/"
           }
         - {
             name: "macOS Latest Clang",
@@ -40,7 +40,7 @@ jobs:
             cxx: "clang++",
             archiver: "7za a",
             generators: "Ninja",
-            prefix_path: "ffmpeg-static/target/"
+            prefix_path: "target"
           }
 
     steps:
@@ -51,49 +51,45 @@ jobs:
         run: |
           echo github.event.action: ${{ github.event.action }}
           echo github.event_name: ${{ github.event_name }}
+      - name: Download ffmpeg-static artifact
+        uses: dawidd6/action-download-artifact@v2
+        with:
+          # Optional, GitHub token, a Personal Access Token with `public_repo` scope if needed
+          # Required, if artifact is from a different repo
+          # Required, if repo is private a Personal Access Token with `repo` scope is needed
+          github_token: ${{secrets.GITHUB_TOKEN}}
+          # Required, workflow file name or ID
+          workflow: build.yml
+          workflow_conclusion: success
+          # Optional, will get head commit SHA
+          pr: ${{github.event.pull_request.number}}
+          # Optional, will use the branch
+          branch: master
+          name: ${{ matrix.config.artifact }}
+          path: ${{ matrix.config.ffmpeg_path }}
+          repo: kuruk-mm/ffmpeg-static
+          check_artifacts:  true
       - name: Install dependencies on ubuntu
         if: startsWith(matrix.config.name, 'Ubuntu_Latest_GCC')
         run: |
           sudo apt-get update
           sudo apt-get install -y ninja-build cmake p7zip-full
-          sudo apt-get install -y build-essential curl tar pkg-config
-          sudo apt-get -y --force-yes install \
-            autoconf \
-            automake \
-            cmake \
-            frei0r-plugins-dev \
-            gawk \
-            libass-dev \
-            libfreetype6-dev \
-            libopencore-amrnb-dev \
-            libopencore-amrwb-dev \
-            libsdl1.2-dev \
-            libspeex-dev \
-            libssl-dev \
-            libtheora-dev \
-            libtool \
-            libva-dev \
-            libvdpau-dev \
-            libvo-amrwbenc-dev \
-            libvorbis-dev \
-            libxvidcore-dev \
-            texi2html \
-            zlib1g-dev
+          ninja --version
+          cmake --version
+          gcc --version
 
       - name: Install dependencies on macOS
         if: startsWith(matrix.config.os, 'macos')
         run: |
-          brew install cmake automake libtool openssl p7zip ninja
+          brew install p7zip cmake ninja
           ninja --version
           cmake --version
-      - name: Configure and build ffmpeg
+      - name: Setup ffmpeg
         shell: bash
         run: |
-          cd ffmpeg-static
-          ./build.sh
-          pwd
-          ls -la
-          ls -la target
+          cd ${{ matrix.config.ffmpeg_path }}
+          p7zip -d ${{ matrix.config.artifact }}
+          ls -la .
       - name: Configure
         shell: bash
         run: |
