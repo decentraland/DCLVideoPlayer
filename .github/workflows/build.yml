@@ -29,7 +29,7 @@ jobs:
             cxx: "g++",
             archiver: "7z a",
             generators: "Ninja",
-            prefix_path: ""
+            prefix_path: "ffmpeg"
           }
 #        - {
 #            name: "macOS Latest Clang",
@@ -72,10 +72,8 @@ jobs:
       - name: Install dependencies on ubuntu
         if: startsWith(matrix.config.name, 'Ubuntu_Latest_GCC')
         run: |
-          ls -la
-          ls -la ffmpeg
           sudo apt-get update
-          sudo apt-get install -y ninja-build cmake
+          sudo apt-get install -y ninja-build cmake p7zip-full
           ninja --version
           cmake --version
           gcc --version
@@ -90,6 +88,9 @@ jobs:
       - name: Configure
         shell: bash
         run: |
+          p7zip -d ffmpeg/${{ matrix.config.artifact }}
+          ls -la ffmpeg
+          export PKG_CONFIG_PATH="$(pwd)/lib/pkgconfig"
           mkdir build
           mkdir target
           cmake \
@@ -120,7 +121,7 @@ jobs:
       - name: Upload
         uses: actions/upload-artifact@v1
         with:
-          path: ./NativeCode/${{ matrix.config.artifact }}
+          path: ${{ matrix.config.artifact }}
           name: ${{ matrix.config.artifact }}
 
       - name: Upload release asset
@@ -130,6 +131,6 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ github.event.release.upload_url }}
-          asset_path: ./NativeCode/${{ matrix.config.artifact }}
+          asset_path: ${{ matrix.config.artifact }}
           asset_name: ${{ matrix.config.artifact }}.zip
           asset_content_type: application/zip
