@@ -84,11 +84,19 @@ jobs:
           brew install p7zip cmake ninja
           ninja --version
           cmake --version
-      - name: Setup ffmpeg
+      - name: Setup ffmpeg on Ubuntu
+        if: startsWith(matrix.config.name, 'Ubuntu_Latest_GCC')
         shell: bash
         run: |
           cd ${{ matrix.config.ffmpeg_path }}
           p7zip -d ${{ matrix.config.artifact }}
+          ls -la .
+      - name: Setup ffmpeg on Mac
+        if: startsWith(matrix.config.name, 'Ubuntu_Latest_GCC')
+        shell: bash
+        run: |
+          cd ${{ matrix.config.ffmpeg_path }}
+          7za x ${{ matrix.config.artifact }}
           ls -la .
       - name: Configure
         shell: bash
