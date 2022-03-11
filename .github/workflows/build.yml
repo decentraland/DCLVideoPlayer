@@ -67,7 +67,7 @@ jobs:
           branch: main
           name: ${{ matrix.config.artifact }}
           path: ffmpeg
-          repo: "https://github.com/kuruk-mm/ffmpeg-static"
+          repo: kuruk-mm/ffmpeg-static
           check_artifacts:  true
       - name: Install dependencies on ubuntu
         if: startsWith(matrix.config.name, 'Ubuntu_Latest_GCC')
