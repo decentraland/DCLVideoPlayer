@@ -29,7 +29,7 @@ jobs:
             cxx: "g++",
             archiver: "7z a",
             generators: "Ninja",
-            prefix_path: "ffmpeg"
+            prefix_path: "target"
           }
 #        - {
 #            name: "macOS Latest Clang",
@@ -40,7 +40,7 @@ jobs:
 #            cxx: "clang++",
 #            archiver: "7za a",
 #            generators: "Ninja",
-#            prefix_path: ""
+#            prefix_path: "target"
 #          }
 
     steps:
