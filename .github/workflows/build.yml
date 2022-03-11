@@ -106,13 +106,11 @@ jobs:
       - name: Build
         shell: bash
         run: |
-          cd NativeCode
           cmake --build . --config ${{ matrix.config.build_type }}
 
       - name: Install Strip
         shell: bash
         run: |
-          cd NativeCode
           cmake --install . --strip
 
       - name: Pack
