@@ -59,12 +59,12 @@ jobs:
           # Required, if repo is private a Personal Access Token with `repo` scope is needed
           github_token: ${{secrets.GITHUB_TOKEN}}
           # Required, workflow file name or ID
-          workflow: CMake Build Matrix
+          workflow: build.yml
           workflow_conclusion: success
           # Optional, will get head commit SHA
           pr: ${{github.event.pull_request.number}}
           # Optional, will use the branch
-          branch: main
+          branch: master
           name: ${{ matrix.config.artifact }}
           path: ffmpeg
           repo: kuruk-mm/ffmpeg-static
