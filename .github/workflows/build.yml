@@ -40,7 +40,7 @@ jobs:
             cxx: "clang++",
             archiver: "7za a",
             generators: "Ninja",
-            prefix_path: "target"
+            ffmpeg_path: "/home/runner/work/ffmpeg-static/ffmpeg-static/target/"
           }
 
     steps:
@@ -102,7 +102,7 @@ jobs:
             -DCMAKE_BUILD_TYPE=${{ matrix.config.build_type }} \
             -G "${{ matrix.config.generators }}" \
             -DCMAKE_INSTALL_PREFIX:PATH=instdir \
-            -DCMAKE_PREFIX_PATH="${{ matrix.config.prefix_path }}"
+            -DCMAKE_PREFIX_PATH="${{ matrix.config.ffmpeg_path }}"
       - name: Build
         shell: bash
         run: |
