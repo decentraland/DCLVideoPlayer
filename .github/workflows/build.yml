@@ -40,7 +40,7 @@ jobs:
             cxx: "clang++",
             archiver: "7za a",
             generators: "Ninja",
-            ffmpeg_path: "/home/runner/work/ffmpeg-static/ffmpeg-static/target/"
+            ffmpeg_path: "/Users/runner/work/ffmpeg-static/ffmpeg-static/"
           }
 
     steps:
