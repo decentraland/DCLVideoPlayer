@@ -223,7 +223,7 @@ int decode_packet(AVCodecContext *avcc, AVPacket *pPacket, AVFrame *pFrame)
     }
 
     if (response >= 0) {
-      logging(
+      /*logging(
           "Frame %d (type=%c, size=%d bytes, format=%d) pts %d key_frame %d [DTS %d]",
           avcc->frame_number,
           av_get_picture_type_char(pFrame->pict_type),
@@ -232,7 +232,7 @@ int decode_packet(AVCodecContext *avcc, AVPacket *pPacket, AVFrame *pFrame)
           pFrame->pts,
           pFrame->key_frame,
           pFrame->coded_picture_number
-      );
+      );*/
       return 0;
     }
   }
@@ -266,20 +266,21 @@ int decoder_process_frame(DecoderContext* dectx, ProcessOutput* processOutput)
   if (av_read_frame(dectx->pFormatContext, dectx->pPacket) >= 0)
   {
     if (dectx->pPacket->stream_index == dectx->video_index) {
-      logging("[VIDEO] AVPacket->pts %" PRId64, dectx->pPacket->pts);
+      double timeInSec = (double)(av_q2d(dectx->video_avs->time_base) * (double)dectx->pFrame->best_effort_timestamp);
+      //logging("[VIDEO] AVPacket frame-number=%d timeInSec=%lf", dectx->video_avcc->frame_number, timeInSec);
       res = decode_packet(dectx->video_avcc, dectx->pPacket, dectx->pFrame);
       if (res < 0)
         return -1;
       processOutput->videoFrame = process_video_frame(dectx->pFrame, dectx->video_avcc->frame_number);
+      res = 0;
     } else if (dectx->pPacket->stream_index == dectx->audio_index) {
-      logging("[AUDIO] AVPacket->pts %" PRId64, dectx->pPacket->pts);
+      //logging("[AUDIO] AVPacket->pts %" PRId64, dectx->pPacket->pts);
       res = decode_packet(dectx->audio_avcc, dectx->pPacket, dectx->pFrame);
       if (res < 0)
         return -1;
       processOutput->audioFrame = process_audio_frame(dectx);
+      res = 0;
     }
-
-    res = 0;
     // https://ffmpeg.org/doxygen/trunk/group__lavc__packet.html#ga63d5a489b419bd5d45cfd09091cbcbc2
     av_packet_unref(dectx->pPacket);
   }

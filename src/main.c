@@ -80,30 +80,40 @@ int main()
     playerProcess(vpc);
 
     uint8_t* videoData = NULL;
-    playerGrabVideoFrame(vpc, &videoData);
-    if (videoData != NULL) {
-      logging("New frame! %f", playerGetPlaybackPosition(vpc));
-      playerReleaseVideoFrame(vpc);
-    }
+    do {
+      videoData = NULL;
+      playerGrabVideoFrame(vpc, &videoData);
+      if (videoData != NULL) {
+        logging("New frame! %f", playerGetPlaybackPosition(vpc));
+        playerReleaseVideoFrame(vpc);
+      }
+    } while(videoData != NULL);
 
-    uint8_t* audioData = NULL;
-    playerGrabAudioFrame(vpc, &audioData);
-    if (audioData != NULL)
-      playerReleaseAudioFrame(vpc);
+    uint8_t *audioData = NULL;
+    do {
+      audioData = NULL;
+      playerGrabAudioFrame(vpc, &audioData);
+      if (audioData != NULL)
+        playerReleaseAudioFrame(vpc);
+    } while(audioData != NULL);
 
     if (testStatus == 0) {
       if (checkpointTimeInSeconds >= 3.0f) {
+        logging("############### TEST STATUS 1 ############################");
         testStatus = 1;
         playerStop(vpc);
+        playerSeek(vpc, 0.0f);
       }
     } else if (testStatus == 1) {
       if (checkpointTimeInSeconds >= 8.0f) {
-        playerSeek(vpc, 120.0f);
+        logging("############### TEST STATUS 2 ############################");
+        //playerSeek(vpc, 0.0f);
         playerPlay(vpc);
         testStatus = 2;
       }
     } else if (testStatus == 2) {
       if (checkpointTimeInSeconds >= 15.0f) {
+        logging("############### TEST STATUS 3 ############################");
         break;
       }
     }

@@ -25,7 +25,9 @@ void queueClean(QueueContext* queue)
     frame = queuePopFront(queue);
     if (frame != NULL)
       av_frame_free(&frame);
-  } while (frame != NULL);
+    else
+      break;
+  } while (1);
 }
 
 AVFrame* queuePeekFront(QueueContext* queue)

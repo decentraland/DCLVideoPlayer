@@ -118,21 +118,27 @@ void playerSeek(VideoPlayerContext* vpc, float time)
 
 void playerProcess(VideoPlayerContext* vpc)
 {
-  if (queueFull(vpc->videoQueue) == 0 && queueFull(vpc->audioQueue) == 0) {
-    ProcessOutput processOutput;
-    int res = decoder_process_frame(vpc->dectx, &processOutput);
-    if (res == 0) {
-      if (processOutput.videoFrame) {
-        queuePush(vpc->videoQueue, processOutput.videoFrame);
-      }
+  int throttling = 10;
+  int res = -1;
+  do {
+    res = -1;
+    if (queueFull(vpc->videoQueue) == 0 && queueFull(vpc->audioQueue) == 0) {
+      ProcessOutput processOutput;
+      res = decoder_process_frame(vpc->dectx, &processOutput);
+      if (res == 0) {
+        if (processOutput.videoFrame) {
+          queuePush(vpc->videoQueue, processOutput.videoFrame);
+        }
 
-      if (processOutput.audioFrame) {
-        queuePush(vpc->audioQueue, processOutput.audioFrame);
-      }
+        if (processOutput.audioFrame) {
+          queuePush(vpc->audioQueue, processOutput.audioFrame);
+        }
 
-      //logging("videoCount=%d audioCount=%d", vpc->videoQueue->count, vpc->audioQueue->count);
+        //logging("videoCount=%d audioCount=%d", vpc->videoQueue->count, vpc->audioQueue->count);
+      }
     }
-  }
+    if (--throttling == 0) break;
+  } while(res == 0); // We have more than one. TODO: we can implement a throttling here if needed...
 }
 
 void grabAVFrame(AVFrame** lockFrame, QueueContext* queue, uint8_t** data, float currentTimeInSec, AVRational time_base)
@@ -145,7 +151,7 @@ void grabAVFrame(AVFrame** lockFrame, QueueContext* queue, uint8_t** data, float
   AVFrame* frame = queuePeekFront(queue);
   if (frame != NULL) {
     double timeInSec = (double)(av_q2d(time_base) * (double)frame->best_effort_timestamp);
-    logging("grabAVFrame %lf VS %f VS %lld", timeInSec, currentTimeInSec, frame->best_effort_timestamp);
+    //logging("grabAVFrame frame-time=%lf VS current-time=%f VS queue-count=%d", timeInSec, currentTimeInSec, queue->count);
     if (timeInSec <= currentTimeInSec) {
       *lockFrame = frame;
       *data = frame->data[0];
