@@ -40,7 +40,7 @@ jobs:
             cxx: "clang++",
             archiver: "7za a",
             generators: "Ninja",
-            ffmpeg_path: "/Users/runner/work/ffmpeg-static/ffmpeg-static/"
+            ffmpeg_path: "/Users/runner/work/ffmpeg-static/ffmpeg-static/target/"
           }
 
     steps:
@@ -101,7 +101,7 @@ jobs:
       - name: Configure
         shell: bash
         run: |
-          export PKG_CONFIG_PATH="${{ matrix.config.ffmpeg_path }}/lib/pkgconfig"
+          export PKG_CONFIG_PATH="${{ matrix.config.ffmpeg_path }}lib/pkgconfig"
           mkdir build
           mkdir instdir
           cmake \
