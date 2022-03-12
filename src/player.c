@@ -30,8 +30,8 @@ VideoPlayerContext* playerCreate(const char* url)
   logging("playerCreate %s", url);
   VideoPlayerContext* vpc = (VideoPlayerContext*)calloc(1, sizeof(VideoPlayerContext));
   vpc->dectx = decoder_create(url);
-  vpc->videoQueue = queueCreate(64);
-  vpc->audioQueue = queueCreate(128);
+  vpc->videoQueue = queueCreate(128);
+  vpc->audioQueue = queueCreate(256);
   vpc->lockVideoFrame = NULL;
   vpc->lockAudioFrame = NULL;
 
