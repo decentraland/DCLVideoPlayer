@@ -2,6 +2,7 @@ cmake_minimum_required(VERSION 3.21)
 project(dclvideoplayer C)
 
 set(CMAKE_C_STANDARD 17)
+message(CMAKE_FIND_LIBRARY_SUFFIXES ${CMAKE_FIND_LIBRARY_SUFFIXES})
 
 if(APPLE)
     set(CMAKE_EXE_LINKER_FLAGS "-static-libstdc++")

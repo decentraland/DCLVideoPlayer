@@ -111,7 +111,7 @@ jobs:
             -G "${{ matrix.config.generators }}" \
             -DCMAKE_INSTALL_PREFIX:PATH=instdir \
             -DCMAKE_PREFIX_PATH="${{ matrix.config.ffmpeg_path }}" \
-            -DCMAKE_FIND_LIBRARY_SUFFIXES=.a
+            -DCMAKE_FIND_LIBRARY_SUFFIXES=".a"
       - name: Build
         shell: bash
         run: |
