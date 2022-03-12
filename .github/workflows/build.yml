@@ -92,7 +92,7 @@ jobs:
           p7zip -d ${{ matrix.config.artifact }}
           ls -la .
       - name: Setup ffmpeg on Mac
-        if: startsWith(matrix.config.name, 'Ubuntu_Latest_GCC')
+        if: startsWith(matrix.config.os, 'macos')
         shell: bash
         run: |
           cd ${{ matrix.config.ffmpeg_path }}
