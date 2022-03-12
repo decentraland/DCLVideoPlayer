@@ -7,7 +7,7 @@ set(CMAKE_C_STANDARD 17)
 if(APPLE)
     set(CMAKE_EXE_LINKER_FLAGS "-static-libstdc++")
 else()
-    set(CMAKE_EXE_LINKER_FLAGS "-static-libgcc -static-libstdc++")
+    set(CMAKE_EXE_LINKER_FLAGS "-static-libgcc -static-libstdc++ -lpthread -lm -lz")
 endif()
 
 find_package(PkgConfig REQUIRED)
