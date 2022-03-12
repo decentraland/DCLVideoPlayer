@@ -1,7 +1,6 @@
 cmake_minimum_required(VERSION 3.21)
 project(dclvideoplayer C)
 
-set(CMAKE_FIND_LIBRARY_SUFFIXES ".a")
 set(CMAKE_C_STANDARD 17)
 
 if(APPLE)
@@ -21,7 +20,7 @@ pkg_check_modules(LIBAV REQUIRED IMPORTED_TARGET
     libavutil
 )
 
-add_library(${PROJECT_NAME} SHARED src/decoder.c src/player.c)
+add_library(${PROJECT_NAME} SHARED src/decoder.c src/player.c src/framequeue.c)
 
 target_link_libraries(${PROJECT_NAME} PUBLIC PkgConfig::LIBAV)
 

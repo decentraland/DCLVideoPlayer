@@ -72,7 +72,7 @@ int prepare_decoder(DecoderContext *dectx) {
   return 0;
 }
 
-DecoderContext* create(const char* url)
+DecoderContext* decoder_create(const char* url)
 {
   DecoderContext* dectx = (DecoderContext*) calloc(1, sizeof(DecoderContext));
   logging("initializing all the containers, codecs and protocols.");
@@ -192,9 +192,9 @@ AVFrame* convert_to_rgb24(AVFrame *srcFrame, int frameNumber)
   dstFrame->width = srcFrame->width;
   dstFrame->height = srcFrame->height;
 
-  char frame_filename[1024];
-  snprintf(frame_filename, sizeof(frame_filename), "out/%s-%d.ppm", "frame", frameNumber);
-  save_ppm_frame(dstFrame->data[0], dstFrame->linesize[0], dstFrame->width, dstFrame->height, frame_filename);
+  //char frame_filename[1024];
+  //snprintf(frame_filename, sizeof(frame_filename), "out/%s-%d.ppm", "frame", frameNumber);
+  //save_ppm_frame(dstFrame->data[0], dstFrame->linesize[0], dstFrame->width, dstFrame->height, frame_filename);
 
   return dstFrame;
 }
@@ -256,7 +256,7 @@ AVFrame* process_audio_frame(DecoderContext* dectx)
   return frameConverted;
 }
 
-int process_frame(DecoderContext* dectx, ProcessOutput* processOutput)
+int decoder_process_frame(DecoderContext* dectx, ProcessOutput* processOutput)
 {
   processOutput->videoFrame = NULL;
   processOutput->audioFrame = NULL;
@@ -270,7 +270,7 @@ int process_frame(DecoderContext* dectx, ProcessOutput* processOutput)
       res = decode_packet(dectx->video_avcc, dectx->pPacket, dectx->pFrame);
       if (res < 0)
         return -1;
-      processOutput->videoFrame = process_video_frame(dectx->pFrame, dectx->audio_avcc->frame_number);
+      processOutput->videoFrame = process_video_frame(dectx->pFrame, dectx->video_avcc->frame_number);
     } else if (dectx->pPacket->stream_index == dectx->audio_index) {
       logging("[AUDIO] AVPacket->pts %" PRId64, dectx->pPacket->pts);
       res = decode_packet(dectx->audio_avcc, dectx->pPacket, dectx->pFrame);
@@ -287,7 +287,13 @@ int process_frame(DecoderContext* dectx, ProcessOutput* processOutput)
   return res;
 }
 
-void destroy(DecoderContext* dectx)
+void decoder_seek(DecoderContext* dectx, float timeInSeconds)
+{
+  uint64_t timestamp = (uint64_t) timeInSeconds * AV_TIME_BASE;
+  av_seek_frame(dectx->pFormatContext, -1, timestamp, AVSEEK_FLAG_BACKWARD);
+}
+
+void decoder_destroy(DecoderContext* dectx)
 {
   logging("releasing all the resources");
 

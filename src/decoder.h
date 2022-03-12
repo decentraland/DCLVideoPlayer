@@ -41,10 +41,10 @@ typedef struct ProcessOutput
   AVFrame *audioFrame;
 } ProcessOutput;
 
-DecoderContext* create(const char* url);
+DecoderContext* decoder_create(const char* url);
 
-int decode_packet(AVCodecContext *avcc, AVPacket *pPacket, AVFrame *pFrame);
+int decoder_process_frame(DecoderContext* dectx, ProcessOutput* processOutput);
 
-int process_frame(DecoderContext* vpContext, ProcessOutput* processOutput);
+void decoder_destroy(DecoderContext* dectx);
 
-void destroy(DecoderContext* vpContext);
+void decoder_seek(DecoderContext* dectx, float timeInSeconds);
