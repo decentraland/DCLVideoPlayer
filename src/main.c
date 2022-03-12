@@ -63,7 +63,7 @@ double getTimeInSeconds()
 int main()
 {
   double checkpointTime = getTimeInSeconds();
-  logging("Hello world\n");
+  logging("Hello world");
 
   VideoPlayerContext* vpc = playerCreate("http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4");
 
@@ -75,14 +75,14 @@ int main()
     float currentTimeInSeconds = playerGetPlaybackPosition(vpc);
     if (lastSecond != (int)currentTimeInSeconds) {
       lastSecond = (int)currentTimeInSeconds;
-      logging("Second: %d %d\n", lastSecond, (int)checkpointTimeInSeconds);
+      logging("Second: %d %d", lastSecond, (int)checkpointTimeInSeconds);
     }
     playerProcess(vpc);
 
     uint8_t* videoData = NULL;
     playerGrabVideoFrame(vpc, &videoData);
     if (videoData != NULL) {
-      logging("New frame! %f\n", playerGetPlaybackPosition(vpc));
+      logging("New frame! %f", playerGetPlaybackPosition(vpc));
       playerReleaseVideoFrame(vpc);
     }
 

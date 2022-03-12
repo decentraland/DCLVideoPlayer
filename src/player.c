@@ -27,7 +27,7 @@ double getTimeInSeconds()
 
 VideoPlayerContext* playerCreate(const char* url)
 {
-  logging("playerCreate %s\n", url);
+  logging("playerCreate %s", url);
   VideoPlayerContext* vpc = (VideoPlayerContext*)calloc(1, sizeof(VideoPlayerContext));
   vpc->dectx = decoder_create(url);
   vpc->videoQueue = queueCreate(64);
@@ -44,7 +44,7 @@ VideoPlayerContext* playerCreate(const char* url)
 
 void playerDestroy(VideoPlayerContext* vpc)
 {
-  logging("playerDestroy\n");
+  logging("playerDestroy");
   decoder_destroy(vpc->dectx);
   queueDestroy(&vpc->videoQueue);
   queueDestroy(&vpc->audioQueue);
@@ -56,7 +56,7 @@ void playerPlay(VideoPlayerContext* vpc)
   if (vpc->playing == 1) return;
   vpc->startTime = getTimeInSeconds() - (vpc->pausedTime - vpc->startTime);
   vpc->playing = 1;
-  logging("playerPlay\n");
+  logging("playerPlay");
 }
 
 void playerStop(VideoPlayerContext* vpc)
@@ -64,13 +64,12 @@ void playerStop(VideoPlayerContext* vpc)
   if (vpc->playing == 0) return;
   vpc->playing = 0;
   vpc->pausedTime = getTimeInSeconds();
-  logging("playerStop\n");
+  logging("playerStop");
 }
 
 int playerIsPlaying(VideoPlayerContext* vpc)
 {
-  logging("playerIsPlaying\n");
-  return 0;
+  return vpc->playing;
 }
 
 void playerSetPaused(VideoPlayerContext* vpc, int paused)
@@ -80,11 +79,6 @@ void playerSetPaused(VideoPlayerContext* vpc, int paused)
   } else {
     playerStop(vpc);
   }
-}
-
-int playerIsPaused(VideoPlayerContext* vpc)
-{
-  return vpc->playing == 0;
 }
 
 void playerSetLoop(VideoPlayerContext* vpc, int loop)
@@ -136,7 +130,7 @@ void playerProcess(VideoPlayerContext* vpc)
         queuePush(vpc->audioQueue, processOutput.audioFrame);
       }
 
-      //logging("videoCount=%d audioCount=%d\n", vpc->videoQueue->count, vpc->audioQueue->count);
+      //logging("videoCount=%d audioCount=%d", vpc->videoQueue->count, vpc->audioQueue->count);
     }
   }
 }
@@ -144,14 +138,14 @@ void playerProcess(VideoPlayerContext* vpc)
 void grabAVFrame(AVFrame** lockFrame, QueueContext* queue, uint8_t** data, float currentTimeInSec, AVRational time_base)
 {
   if (*lockFrame != NULL) {
-    logging("[ERROR] Release video frame before grabbing another one!\n");
+    logging("[ERROR] Release video frame before grabbing another one!");
     return;
   }
 
   AVFrame* frame = queuePeekFront(queue);
   if (frame != NULL) {
     double timeInSec = (double)(av_q2d(time_base) * (double)frame->best_effort_timestamp);
-    logging("grabAVFrame %lf VS %f VS %lld\n", timeInSec, currentTimeInSec, frame->best_effort_timestamp);
+    logging("grabAVFrame %lf VS %f VS %lld", timeInSec, currentTimeInSec, frame->best_effort_timestamp);
     if (timeInSec <= currentTimeInSec) {
       *lockFrame = frame;
       *data = frame->data[0];

@@ -24,9 +24,7 @@ void playerPlay(VideoPlayerContext* vpc);
 void playerStop(VideoPlayerContext* vpc);
 
 int playerIsPlaying(VideoPlayerContext* vpc);
-
 void playerSetPaused(VideoPlayerContext* vpc, int paused);
-int playerIsPaused(VideoPlayerContext* vpc);
 
 void playerSetLoop(VideoPlayerContext* vpc, int loop);
 int playerHasLoop(VideoPlayerContext* vpc);
