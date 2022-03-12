@@ -2,6 +2,11 @@ cmake_minimum_required(VERSION 3.21)
 project(dclvideoplayer C)
 
 set(CMAKE_C_STANDARD 17)
+
+option(STATIC_LIB "Build only static library" OFF)
+if(STATIC_LIB)
+    set(CMAKE_FIND_LIBRARY_SUFFIXES ".a")
+endif()
 message(CMAKE_FIND_LIBRARY_SUFFIXES ${CMAKE_FIND_LIBRARY_SUFFIXES})
 
 if(APPLE)
