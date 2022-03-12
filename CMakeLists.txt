@@ -3,7 +3,12 @@ project(dclvideoplayer C)
 
 set(CMAKE_FIND_LIBRARY_SUFFIXES ".a")
 set(CMAKE_C_STANDARD 17)
-set(CMAKE_EXE_LINKER_FLAGS "-static-libgcc -static-libstdc++")
+
+if(APPLE)
+    set(CMAKE_EXE_LINKER_FLAGS "-static-libstdc++")
+else()
+    set(CMAKE_EXE_LINKER_FLAGS "-static-libgcc -static-libstdc++")
+endif()
 
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(LIBAV REQUIRED IMPORTED_TARGET
