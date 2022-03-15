@@ -235,7 +235,7 @@ void player_get_audio_format(MediaPlayerContext* vpc, int* frequency, int* chann
 
 double player_get_start_time(MediaPlayerContext* vpc)
 {
-  vpc->start_time;
+  return vpc->start_time;
 }
 
 void player_set_start_time(MediaPlayerContext* vpc, double time)
