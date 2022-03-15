@@ -14,7 +14,7 @@ typedef struct DecoderContext
   // AVFormatContext holds the header information from the format (Container)
   // Allocating memory for this component
   // http://ffmpeg.org/doxygen/trunk/structAVFormatContext.html
-  AVFormatContext *pFormatContext;
+  AVFormatContext *av_format_ctx;
 
   AVCodec *video_avc;
   AVCodec *audio_avc;
@@ -26,13 +26,18 @@ typedef struct DecoderContext
   int audio_index;
 
   // https://ffmpeg.org/doxygen/trunk/structAVFrame.html
-  AVFrame *pFrame;
+  AVFrame *av_frame;
 
   // https://ffmpeg.org/doxygen/trunk/structAVPacket.html
-  AVPacket *pPacket;
+  AVPacket *av_packet;
 
   SwrContext*	swr_ctx;
-  unsigned int audio_channels;
+  int loop;
+  float video_duration_in_sec;
+  float audio_duration_in_sec;
+
+  int audio_frequency;
+  int audio_channels;
 } DecoderContext;
 
 typedef struct ProcessOutput

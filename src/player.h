@@ -3,41 +3,42 @@
 #include "decoder.h"
 #include "framequeue.h"
 
-typedef struct VideoPlayerContext {
+typedef struct MediaPlayerContext {
     DecoderContext* dectx;
-    QueueContext* videoQueue;
-    QueueContext* audioQueue;
+    QueueContext* video_queue;
+    QueueContext* audio_queue;
 
-    AVFrame* lockVideoFrame;
-    AVFrame* lockAudioFrame;
+    float last_video_frame_time;
 
-    double startTime;
-    double pausedTime;
+    double start_time;
+    double paused_time;
     int playing;
     int loop;
-} VideoPlayerContext;
+    int buffering;
+} MediaPlayerContext;
 
-VideoPlayerContext* playerCreate(const char* url);
-void playerDestroy(VideoPlayerContext* vpc);
+MediaPlayerContext* player_create(const char* url);
+void player_destroy(MediaPlayerContext* vpc);
 
-void playerPlay(VideoPlayerContext* vpc);
-void playerStop(VideoPlayerContext* vpc);
+void player_play(MediaPlayerContext* vpc);
+void player_stop(MediaPlayerContext* vpc);
 
-int playerIsPlaying(VideoPlayerContext* vpc);
-void playerSetPaused(VideoPlayerContext* vpc, int paused);
+int player_is_playing(MediaPlayerContext* vpc);
+void player_set_paused(MediaPlayerContext* vpc, int paused);
 
-void playerSetLoop(VideoPlayerContext* vpc, int loop);
-int playerHasLoop(VideoPlayerContext* vpc);
+void player_set_loop(MediaPlayerContext* vpc, int loop);
+int player_has_loop(MediaPlayerContext* vpc);
 
-float playerGetLength(VideoPlayerContext* vpc);
-float playerGetPlaybackPosition(VideoPlayerContext* vpc);
+float player_get_length(MediaPlayerContext* vpc);
+float player_get_playback_position(MediaPlayerContext* vpc);
 
-void playerSeek(VideoPlayerContext* vpc, float time);
+void player_seek(MediaPlayerContext* vpc, float time);
 
-void playerProcess(VideoPlayerContext* vpc);
+void player_process(MediaPlayerContext* vpc);
 
-void playerGrabVideoFrame(VideoPlayerContext* vpc, uint8_t** data);
-void playerReleaseVideoFrame(VideoPlayerContext* vpc);
+double player_grab_video_frame(MediaPlayerContext* vpc, void** release_ptr, uint8_t** data);
+double player_grab_audio_frame(MediaPlayerContext* vpc, void** release_ptr, uint8_t** data);
+void player_release_frame(MediaPlayerContext* vpc, void* release_ptr);
 
-void playerGrabAudioFrame(VideoPlayerContext* vpc, uint8_t** data);
-void playerReleaseAudioFrame(VideoPlayerContext* vpc);
+void player_get_video_format(MediaPlayerContext* vpc, int* width, int* height);
+void player_get_audio_format(MediaPlayerContext* vpc, int* audio_frequency, int* channels);

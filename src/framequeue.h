@@ -14,16 +14,18 @@ typedef struct QueueContext {
     int maxCount;
 } QueueContext;
 
-QueueContext* queueCreate(int maxCount);
+QueueContext* queue_create(int maxCount);
 
-int queueFull(QueueContext* queue);
+int queue_is_full(QueueContext* queue);
 
-AVFrame* queuePopFront(QueueContext* queue);
+int queue_is_empty(QueueContext* queue);
 
-AVFrame* queuePeekFront(QueueContext* queue);
+AVFrame* queue_pop_front(QueueContext* queue);
 
-void queuePush(QueueContext* queue, AVFrame* frame);
+AVFrame* queue_peek_front(QueueContext* queue);
 
-void queueClean(QueueContext* queue);
+void queue_push(QueueContext* queue, AVFrame* frame);
 
-void queueDestroy(QueueContext** queueRef);
+void queue_clean(QueueContext* queue);
+
+void queue_destroy(QueueContext** queueRef);

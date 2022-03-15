@@ -3,7 +3,7 @@
 #include "logger.h"
 #include <time.h>
 
-double getTimeInSeconds()
+double get_time_in_seconds()
 {
   struct timespec tms;
 
@@ -62,63 +62,66 @@ double getTimeInSeconds()
 
 int main()
 {
-  double checkpointTime = getTimeInSeconds();
+  double checkpointTime = get_time_in_seconds();
   logging("Hello world");
 
-  VideoPlayerContext* vpc = playerCreate("http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4");
+  MediaPlayerContext* vpc = player_create(
+          "http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4");
 
-  playerPlay(vpc);
-  int lastSecond = 0;
+  player_play(vpc);
+  player_set_loop(vpc, 1);
+  player_seek(vpc, 588.0f);
+  int last_second = 0;
   int testStatus = 0;
   while(1) {
-    float checkpointTimeInSeconds = getTimeInSeconds() - checkpointTime;
-    float currentTimeInSeconds = playerGetPlaybackPosition(vpc);
-    if (lastSecond != (int)currentTimeInSeconds) {
-      lastSecond = (int)currentTimeInSeconds;
-      logging("Second: %d %d", lastSecond, (int)checkpointTimeInSeconds);
+    float checkpoint_time_in_seconds = get_time_in_seconds() - checkpointTime;
+    float current_time_in_seconds = player_get_playback_position(vpc);
+    if (last_second != (int)current_time_in_seconds) {
+      last_second = (int)current_time_in_seconds;
+      logging("Second: %d %d", last_second, (int)checkpoint_time_in_seconds);
     }
-    playerProcess(vpc);
+    player_process(vpc);
 
+    void* release_ptr = NULL;
     uint8_t* videoData = NULL;
     do {
       videoData = NULL;
-      playerGrabVideoFrame(vpc, &videoData);
+      player_grab_video_frame(vpc, &release_ptr, &videoData);
       if (videoData != NULL) {
-        logging("New frame! %f", playerGetPlaybackPosition(vpc));
-        playerReleaseVideoFrame(vpc);
+        logging("New frame! %f", player_get_playback_position(vpc));
+        player_release_frame(vpc, release_ptr);
       }
     } while(videoData != NULL);
 
-    uint8_t *audioData = NULL;
+    uint8_t *audio_data = NULL;
     do {
-      audioData = NULL;
-      playerGrabAudioFrame(vpc, &audioData);
-      if (audioData != NULL)
-        playerReleaseAudioFrame(vpc);
-    } while(audioData != NULL);
+      audio_data = NULL;
+      player_grab_audio_frame(vpc, &release_ptr, &audio_data);
+      if (audio_data != NULL)
+        player_release_frame(vpc, release_ptr);
+    } while(audio_data != NULL);
 
-    if (testStatus == 0) {
-      if (checkpointTimeInSeconds >= 3.0f) {
+    /*if (testStatus == 0) {
+      if (checkpoint_time_in_seconds >= 6.0f) {
         logging("############### TEST STATUS 1 ############################");
         testStatus = 1;
-        playerStop(vpc);
-        playerSeek(vpc, 0.0f);
+        //playerSeek(vpc, 588.0f);
       }
     } else if (testStatus == 1) {
-      if (checkpointTimeInSeconds >= 8.0f) {
+      if (checkpoint_time_in_seconds >= 500.0f) {
         logging("############### TEST STATUS 2 ############################");
-        //playerSeek(vpc, 0.0f);
-        playerPlay(vpc);
+        //player_seek(vpc, 0.0f);
+        //player_play(vpc);
         testStatus = 2;
       }
     } else if (testStatus == 2) {
-      if (checkpointTimeInSeconds >= 15.0f) {
+      if (checkpoint_time_in_seconds >= 600.0f) {
         logging("############### TEST STATUS 3 ############################");
         break;
       }
-    }
+    }*/
   }
 
-  playerDestroy(vpc);
+  player_destroy(vpc);
   return 0;
 }

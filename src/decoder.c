@@ -46,20 +46,21 @@ int prepare_swr(DecoderContext *dectx) {
 	}
 
   dectx->audio_channels = av_get_channel_layout_nb_channels(outChannelLayout);
+  dectx->audio_frequency = outSampleRate;
   return errorCode;
 }
 
 int prepare_decoder(DecoderContext *dectx) {
   logging("preparing decoder");
-  for (int i = 0; i < dectx->pFormatContext->nb_streams; i++) {
-    if (dectx->pFormatContext->streams[i]->codecpar->codec_type == AVMEDIA_TYPE_VIDEO) {
-      dectx->video_avs = dectx->pFormatContext->streams[i];
+  for (int i = 0; i < dectx->av_format_ctx->nb_streams; i++) {
+    if (dectx->av_format_ctx->streams[i]->codecpar->codec_type == AVMEDIA_TYPE_VIDEO) {
+      dectx->video_avs = dectx->av_format_ctx->streams[i];
       dectx->video_index = i;
 
       if (fill_stream_info(dectx->video_avs, &dectx->video_avc, &dectx->video_avcc)) {return -1;}
       prepare_swr(dectx);
-    } else if (dectx->pFormatContext->streams[i]->codecpar->codec_type == AVMEDIA_TYPE_AUDIO) {
-      dectx->audio_avs = dectx->pFormatContext->streams[i];
+    } else if (dectx->av_format_ctx->streams[i]->codecpar->codec_type == AVMEDIA_TYPE_AUDIO) {
+      dectx->audio_avs = dectx->av_format_ctx->streams[i];
       dectx->audio_index = i;
 
       if (fill_stream_info(dectx->audio_avs, &dectx->audio_avc, &dectx->audio_avcc)) {return -1;}
@@ -80,8 +81,8 @@ DecoderContext* decoder_create(const char* url)
   // AVFormatContext holds the header information from the format (Container)
   // Allocating memory for this component
   // http://ffmpeg.org/doxygen/trunk/structAVFormatContext.html
-  dectx->pFormatContext = avformat_alloc_context();
-  if (!dectx->pFormatContext) {
+  dectx->av_format_ctx = avformat_alloc_context();
+  if (!dectx->av_format_ctx) {
     logging("ERROR could not allocate memory for Format Context");
     return NULL;
   }
@@ -94,7 +95,7 @@ DecoderContext* decoder_create(const char* url)
   // AVInputFormat (if you pass NULL it'll do the auto detect)
   // and AVDictionary (which are options to the demuxer)
   // http://ffmpeg.org/doxygen/trunk/group__lavf__decoding.html#ga31d601155e9035d5b0e7efedc894ee49
-  if (avformat_open_input(&dectx->pFormatContext, url, NULL, NULL) != 0) {
+  if (avformat_open_input(&dectx->av_format_ctx, url, NULL, NULL) != 0) {
     logging("ERROR could not open the file");
     return NULL;
   }
@@ -102,18 +103,18 @@ DecoderContext* decoder_create(const char* url)
   // now we have access to some information about our file
   // since we read its header we can say what format (container) it's
   // and some other information related to the format itself.
-  logging("format %s, duration %lld us, bit_rate %lld", dectx->pFormatContext->iformat->name, dectx->pFormatContext->duration, dectx->pFormatContext->bit_rate);
+  logging("format %s, duration %lld us, bit_rate %lld", dectx->av_format_ctx->iformat->name, dectx->av_format_ctx->duration, dectx->av_format_ctx->bit_rate);
 
   logging("finding stream info from format");
   // read Packets from the Format to get stream information
-  // this function populates dectx->pFormatContext->streams
-  // (of size equals to dectx->pFormatContext->nb_streams)
+  // this function populates dectx->av_format_ctx->streams
+  // (of size equals to dectx->av_format_ctx->nb_streams)
   // the arguments are:
   // the AVFormatContext
   // and options contains options for codec corresponding to i-th stream.
   // On return each dictionary will be filled with options that were not found.
   // https://ffmpeg.org/doxygen/trunk/group__lavf__decoding.html#gad42172e27cddafb81096939783b157bb
-  if (avformat_find_stream_info(dectx->pFormatContext,  NULL) < 0) {
+  if (avformat_find_stream_info(dectx->av_format_ctx, NULL) < 0) {
     logging("ERROR could not get the stream info");
     return NULL;
   }
@@ -137,8 +138,14 @@ DecoderContext* decoder_create(const char* url)
     return NULL;
   }
 
-  dectx->pFrame = pFrame;
-  dectx->pPacket = pPacket;
+  dectx->av_frame = pFrame;
+  dectx->av_packet = pPacket;
+  dectx->loop = 0;
+
+  dectx->video_duration_in_sec = dectx->video_avs->duration <= 0 ? (double)(dectx->av_format_ctx->duration) / AV_TIME_BASE : dectx->video_avs->duration * av_q2d(dectx->video_avs->time_base);
+  logging("video duration: %f", dectx->video_duration_in_sec);
+
+  dectx->audio_duration_in_sec = dectx->audio_avs->duration <= 0 ? (double)(dectx->av_format_ctx->duration) / AV_TIME_BASE : dectx->audio_avs->duration * av_q2d(dectx->audio_avs->time_base);
   return dectx;
 }
 
@@ -226,12 +233,12 @@ int decode_packet(AVCodecContext *avcc, AVPacket *pPacket, AVFrame *pFrame)
       /*logging(
           "Frame %d (type=%c, size=%d bytes, format=%d) pts %d key_frame %d [DTS %d]",
           avcc->frame_number,
-          av_get_picture_type_char(pFrame->pict_type),
-          pFrame->pkt_size,
-          pFrame->format,
-          pFrame->pts,
-          pFrame->key_frame,
-          pFrame->coded_picture_number
+          av_get_picture_type_char(av_frame->pict_type),
+          av_frame->pkt_size,
+          av_frame->format,
+          av_frame->pts,
+          av_frame->key_frame,
+          av_frame->coded_picture_number
       );*/
       return 0;
     }
@@ -246,7 +253,7 @@ AVFrame* process_video_frame(AVFrame* frame, int frameNumber)
 
 AVFrame* process_audio_frame(DecoderContext* dectx)
 {
-  AVFrame* frame = dectx->pFrame;
+  AVFrame* frame = dectx->av_frame;
   AVFrame* frameConverted = av_frame_alloc();
   frameConverted->sample_rate = frame->sample_rate;
   frameConverted->channel_layout = av_get_default_channel_layout(dectx->audio_channels);
@@ -263,26 +270,32 @@ int decoder_process_frame(DecoderContext* dectx, ProcessOutput* processOutput)
   int res = -1;
   // fill the Packet with data from the Stream
   // https://ffmpeg.org/doxygen/trunk/group__lavf__decoding.html#ga4fdb3084415a82e3810de6ee60e46a61
-  if (av_read_frame(dectx->pFormatContext, dectx->pPacket) >= 0)
+  if (av_read_frame(dectx->av_format_ctx, dectx->av_packet) >= 0)
   {
-    if (dectx->pPacket->stream_index == dectx->video_index) {
-      double timeInSec = (double)(av_q2d(dectx->video_avs->time_base) * (double)dectx->pFrame->best_effort_timestamp);
+    if (dectx->av_packet->stream_index == dectx->video_index) {
+      double timeInSec = (double)(av_q2d(dectx->video_avs->time_base) * (double)dectx->av_frame->best_effort_timestamp);
       //logging("[VIDEO] AVPacket frame-number=%d timeInSec=%lf", dectx->video_avcc->frame_number, timeInSec);
-      res = decode_packet(dectx->video_avcc, dectx->pPacket, dectx->pFrame);
+      res = decode_packet(dectx->video_avcc, dectx->av_packet, dectx->av_frame);
       if (res < 0)
         return -1;
-      processOutput->videoFrame = process_video_frame(dectx->pFrame, dectx->video_avcc->frame_number);
+      processOutput->videoFrame = process_video_frame(dectx->av_frame, dectx->video_avcc->frame_number);
       res = 0;
-    } else if (dectx->pPacket->stream_index == dectx->audio_index) {
-      //logging("[AUDIO] AVPacket->pts %" PRId64, dectx->pPacket->pts);
-      res = decode_packet(dectx->audio_avcc, dectx->pPacket, dectx->pFrame);
+    } else if (dectx->av_packet->stream_index == dectx->audio_index) {
+      //logging("[AUDIO] AVPacket->pts %" PRId64, dectx->av_packet->pts);
+      res = decode_packet(dectx->audio_avcc, dectx->av_packet, dectx->av_frame);
       if (res < 0)
         return -1;
       processOutput->audioFrame = process_audio_frame(dectx);
       res = 0;
     }
     // https://ffmpeg.org/doxygen/trunk/group__lavc__packet.html#ga63d5a489b419bd5d45cfd09091cbcbc2
-    av_packet_unref(dectx->pPacket);
+    av_packet_unref(dectx->av_packet);
+  }
+  else
+  {
+    if (dectx->loop == 1) {
+      decoder_seek(dectx, 0.0f);
+    }
   }
 
   return res;
@@ -291,16 +304,16 @@ int decoder_process_frame(DecoderContext* dectx, ProcessOutput* processOutput)
 void decoder_seek(DecoderContext* dectx, float timeInSeconds)
 {
   uint64_t timestamp = (uint64_t) timeInSeconds * AV_TIME_BASE;
-  av_seek_frame(dectx->pFormatContext, -1, timestamp, AVSEEK_FLAG_BACKWARD);
+  av_seek_frame(dectx->av_format_ctx, -1, timestamp, AVSEEK_FLAG_BACKWARD);
 }
 
 void decoder_destroy(DecoderContext* dectx)
 {
   logging("releasing all the resources");
 
-  avformat_close_input(&dectx->pFormatContext);
-  av_packet_free(&dectx->pPacket);
-  av_frame_free(&dectx->pFrame);
+  avformat_close_input(&dectx->av_format_ctx);
+  av_packet_free(&dectx->av_packet);
+  av_frame_free(&dectx->av_frame);
   avcodec_free_context(&dectx->video_avcc);
   avcodec_free_context(&dectx->audio_avcc);
 

@@ -2,7 +2,7 @@
 #include "logger.h"
 #include <libavformat/avformat.h>
 
-double getTimeInSeconds()
+double get_time_in_seconds()
 {
   struct timespec tms;
 
@@ -25,173 +25,204 @@ double getTimeInSeconds()
   return seconds;
 }
 
-VideoPlayerContext* playerCreate(const char* url)
+MediaPlayerContext* player_create(const char* url)
 {
-  logging("playerCreate %s", url);
-  VideoPlayerContext* vpc = (VideoPlayerContext*)calloc(1, sizeof(VideoPlayerContext));
+  logging("player_create %s", url);
+  MediaPlayerContext* vpc = (MediaPlayerContext*)calloc(1, sizeof(MediaPlayerContext));
   vpc->dectx = decoder_create(url);
-  vpc->videoQueue = queueCreate(128);
-  vpc->audioQueue = queueCreate(256);
-  vpc->lockVideoFrame = NULL;
-  vpc->lockAudioFrame = NULL;
+  vpc->video_queue = queue_create(64);
+  vpc->audio_queue = queue_create(128);
 
-  vpc->startTime = 0.0;
-  vpc->pausedTime = 0.0;
+  vpc->start_time = get_time_in_seconds();
+  vpc->paused_time = vpc->start_time;
   vpc->playing = 0;
   vpc->loop = 0;
+  vpc->buffering = 1;
+  vpc->last_video_frame_time = 0.0f;
   return vpc;
 }
 
-void playerDestroy(VideoPlayerContext* vpc)
+void player_destroy(MediaPlayerContext* vpc)
 {
-  logging("playerDestroy");
+  logging("player_destroy");
   decoder_destroy(vpc->dectx);
-  queueDestroy(&vpc->videoQueue);
-  queueDestroy(&vpc->audioQueue);
+  queue_destroy(&vpc->video_queue);
+  queue_destroy(&vpc->audio_queue);
   free(vpc);
 }
 
-void playerPlay(VideoPlayerContext* vpc)
+void player_play(MediaPlayerContext* vpc)
 {
   if (vpc->playing == 1) return;
-  vpc->startTime = getTimeInSeconds() - (vpc->pausedTime - vpc->startTime);
+  vpc->start_time = get_time_in_seconds() - (vpc->paused_time - vpc->start_time);
   vpc->playing = 1;
-  logging("playerPlay");
+  logging("player_play");
 }
 
-void playerStop(VideoPlayerContext* vpc)
+void player_stop(MediaPlayerContext* vpc)
 {
   if (vpc->playing == 0) return;
   vpc->playing = 0;
-  vpc->pausedTime = getTimeInSeconds();
-  logging("playerStop");
+  vpc->paused_time = get_time_in_seconds();
+  logging("player_stop");
 }
 
-int playerIsPlaying(VideoPlayerContext* vpc)
+int player_is_playing(MediaPlayerContext* vpc)
 {
   return vpc->playing;
 }
 
-void playerSetPaused(VideoPlayerContext* vpc, int paused)
+void player_set_paused(MediaPlayerContext* vpc, int paused)
 {
   if (paused == 1) {
-    playerPlay(vpc);
+    player_play(vpc);
   } else {
-    playerStop(vpc);
+    player_stop(vpc);
   }
 }
 
-void playerSetLoop(VideoPlayerContext* vpc, int loop)
+void player_set_loop(MediaPlayerContext* vpc, int loop)
 {
   vpc->loop = loop;
+  vpc->dectx->loop = loop;
 }
 
-int playerHasLoop(VideoPlayerContext* vpc)
+int player_has_loop(MediaPlayerContext* vpc)
 {
   return vpc->loop;
 }
 
-float playerGetLength(VideoPlayerContext* vpc)
+float player_get_length(MediaPlayerContext* vpc)
 {
-  return 0.0f;
+  double ctxDuration = (double)(vpc->dectx->av_format_ctx->duration) / AV_TIME_BASE;
+  double vsDuration = vpc->dectx->video_avs->duration;
+  return vpc->dectx->video_avs->duration <= 0 ? ctxDuration : vsDuration * av_q2d(vpc->dectx->video_avs->time_base);
 }
 
-float playerGetPlaybackPosition(VideoPlayerContext* vpc)
+float player_get_playback_position(MediaPlayerContext* vpc)
 {
   if (vpc->playing == 1) {
-    return (float) (getTimeInSeconds() - vpc->startTime);
+    return (float) (get_time_in_seconds() - vpc->start_time);
   } else {
-    return (float) (vpc->pausedTime - vpc->startTime);
+    return (float) (vpc->paused_time - vpc->start_time);
   }
 }
 
-void playerSeek(VideoPlayerContext* vpc, float time)
+void player_seek(MediaPlayerContext* vpc, float time)
 {
   decoder_seek(vpc->dectx, time);
-  queueClean(vpc->videoQueue);
-  queueClean(vpc->audioQueue);
+  queue_clean(vpc->video_queue);
+  queue_clean(vpc->audio_queue);
   if (vpc->playing == 1)
-    vpc->startTime = getTimeInSeconds() - time;
+    vpc->start_time = get_time_in_seconds() - time;
   else
-    vpc->pausedTime = vpc->startTime + time;
+    vpc->paused_time = vpc->start_time + time;
 }
 
-void playerProcess(VideoPlayerContext* vpc)
+void player_process(MediaPlayerContext* vpc)
 {
-  int throttling = 10;
   int res = -1;
-  do {
-    res = -1;
-    if (queueFull(vpc->videoQueue) == 0 && queueFull(vpc->audioQueue) == 0) {
-      ProcessOutput processOutput;
-      res = decoder_process_frame(vpc->dectx, &processOutput);
-      if (res == 0) {
-        if (processOutput.videoFrame) {
-          queuePush(vpc->videoQueue, processOutput.videoFrame);
-        }
-
-        if (processOutput.audioFrame) {
-          queuePush(vpc->audioQueue, processOutput.audioFrame);
-        }
-
-        //logging("videoCount=%d audioCount=%d", vpc->videoQueue->count, vpc->audioQueue->count);
+  if (queue_is_full(vpc->video_queue) == 0 && queue_is_full(vpc->audio_queue) == 0) {
+    ProcessOutput processOutput;
+    res = decoder_process_frame(vpc->dectx, &processOutput);
+    if (res == 0) {
+      if (processOutput.videoFrame) {
+        queue_push(vpc->video_queue, processOutput.videoFrame);
       }
+
+      if (processOutput.audioFrame) {
+        queue_push(vpc->audio_queue, processOutput.audioFrame);
+      }
+
+      if (vpc->buffering == 1) {
+        if (queue_is_full(vpc->video_queue) == 1 || queue_is_full(vpc->audio_queue) == 1) {
+          vpc->start_time = get_time_in_seconds() - (vpc->paused_time - vpc->start_time);
+          vpc->buffering = 0;
+        }
+      }
+
+      logging("videoCount=%d audioCount=%d", vpc->video_queue->count, vpc->audio_queue->count);
     }
-    if (--throttling == 0) break;
-  } while(res == 0); // We have more than one. TODO: we can implement a throttling here if needed...
+  }
 }
 
-void grabAVFrame(AVFrame** lockFrame, QueueContext* queue, uint8_t** data, float currentTimeInSec, AVRational time_base)
+float _internal_grab_video_frame(MediaPlayerContext* vpc, void** release_ptr, QueueContext* queue, uint8_t** data, float current_time_in_sec, AVRational time_base)
 {
-  if (*lockFrame != NULL) {
-    logging("[ERROR] Release video frame before grabbing another one!");
-    return;
-  }
+  AVFrame* frame = queue_peek_front(queue);
 
-  AVFrame* frame = queuePeekFront(queue);
   if (frame != NULL) {
-    double timeInSec = (double)(av_q2d(time_base) * (double)frame->best_effort_timestamp);
-    //logging("grabAVFrame frame-time=%lf VS current-time=%f VS queue-count=%d", timeInSec, currentTimeInSec, queue->count);
-    if (timeInSec <= currentTimeInSec) {
-      *lockFrame = frame;
+    double time_in_sec = (double)(av_q2d(time_base) * (double)frame->best_effort_timestamp);
+    if (time_in_sec <= current_time_in_sec) {
+
+      *release_ptr = frame;
       *data = frame->data[0];
-      queuePopFront(queue);
+      queue_pop_front(queue);
+
+      if (queue_is_empty(queue)) {
+        vpc->buffering = 1;
+        vpc->paused_time = get_time_in_seconds();
+      }
+
+      return (float)time_in_sec;
     } else {
       *data = NULL;
     }
   } else {
     *data = NULL;
   }
+  return 0.0f;
 }
 
-void playerGrabVideoFrame(VideoPlayerContext* vpc, uint8_t** data)
+double player_grab_video_frame(MediaPlayerContext* vpc, void** release_ptr, uint8_t** data)
 {
-  if (vpc->playing == 1) {
-    float currentTimeInSec = (float) (getTimeInSeconds() - vpc->startTime);
-    grabAVFrame(&vpc->lockVideoFrame, vpc->videoQueue, data, currentTimeInSec, vpc->dectx->video_avs->time_base);
+  if (vpc->playing == 1 && vpc->buffering == 0) {
+    float current_time_in_sec = (float) (get_time_in_seconds() - vpc->start_time);
+    float current_frame_time = 0.0;
+    current_frame_time = _internal_grab_video_frame(vpc, release_ptr, vpc->video_queue, data, current_time_in_sec,
+                                                    vpc->dectx->video_avs->time_base);
+    if (current_frame_time != 0.0f) {
+      logging("%f VS %f", current_frame_time, vpc->last_video_frame_time);
+
+      if (vpc->loop == 1 && current_frame_time < vpc->last_video_frame_time && vpc->last_video_frame_time != 0.0f) { // It's not continuos... so we made a loop
+        vpc->start_time = get_time_in_seconds();
+        current_time_in_sec = 0.0f;
+      }
+      vpc->last_video_frame_time = current_frame_time;
+    }
+    return current_frame_time;
   }
+  return -1.0;
 }
 
-void playerReleaseVideoFrame(VideoPlayerContext* vpc)
+double player_grab_audio_frame(MediaPlayerContext* vpc, void** release_ptr, uint8_t** data)
 {
-  if (vpc->lockVideoFrame) {
-    av_frame_free(&vpc->lockVideoFrame);
-    vpc->lockVideoFrame = NULL;
+  if (vpc->playing == 1 && vpc->buffering == 0) {
+    AVFrame* frame = queue_pop_front(vpc->audio_queue);
+    if (frame != NULL) {
+      *release_ptr = frame;
+      *data = frame->data[0];
+
+      double time_in_sec = (double) (av_q2d(vpc->dectx->video_avs->time_base) * (double) frame->best_effort_timestamp);
+      return time_in_sec;
+    }
   }
+  return -1.0;
 }
 
-void playerGrabAudioFrame(VideoPlayerContext* vpc, uint8_t** data)
+void player_release_frame(MediaPlayerContext* vpc, void* release_ptr)
 {
-  if (vpc->playing == 1) {
-    float currentTimeInSec = (float) (getTimeInSeconds() - vpc->startTime);
-    grabAVFrame(&vpc->lockAudioFrame, vpc->audioQueue, data, currentTimeInSec, vpc->dectx->audio_avs->time_base);
-  }
+  AVFrame* frame = release_ptr;
+  av_frame_free(&frame);
 }
 
-void playerReleaseAudioFrame(VideoPlayerContext* vpc)
+void player_get_video_format(MediaPlayerContext* vpc, int* width, int* height)
 {
-  if (vpc->lockAudioFrame) {
-    av_frame_free(&vpc->lockAudioFrame);
-    vpc->lockAudioFrame = NULL;
-  }
+  *width = vpc->dectx->video_avcc->width;
+  *height = vpc->dectx->video_avcc->height;
+}
+
+void player_get_audio_format(MediaPlayerContext* vpc, int* frequency, int* channels)
+{
+  *frequency = vpc->dectx->audio_frequency;
+  *channels = vpc->dectx->audio_channels;
 }
