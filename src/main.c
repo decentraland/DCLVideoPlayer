@@ -74,8 +74,8 @@ int main()
   int last_second = 0;
   int testStatus = 0;
   while(1) {
-    float checkpoint_time_in_seconds = get_time_in_seconds() - checkpointTime;
-    float current_time_in_seconds = player_get_playback_position(vpc);
+    double checkpoint_time_in_seconds = get_time_in_seconds() - checkpointTime;
+    double current_time_in_seconds = player_get_playback_position(vpc);
     if (last_second != (int)current_time_in_seconds) {
       last_second = (int)current_time_in_seconds;
       logging("Second: %d %d", last_second, (int)checkpoint_time_in_seconds);

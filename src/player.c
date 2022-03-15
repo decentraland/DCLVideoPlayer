@@ -118,6 +118,7 @@ void player_seek(MediaPlayerContext* vpc, float time)
   decoder_seek(vpc->dectx, time);
   queue_clean(vpc->video_queue);
   queue_clean(vpc->audio_queue);
+  vpc->buffering = 1;
   if (vpc->playing == 1)
     vpc->start_time = get_time_in_seconds() - time;
   else
