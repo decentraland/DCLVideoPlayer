@@ -94,9 +94,10 @@ int main()
     } while(videoData != NULL);
 
     uint8_t *audio_data = NULL;
+    int frame_size = 0;
     do {
       audio_data = NULL;
-      player_grab_audio_frame(vpc, &release_ptr, &audio_data);
+      player_grab_audio_frame(vpc, &release_ptr, &audio_data, &frame_size);
       if (audio_data != NULL)
         player_release_frame(vpc, release_ptr);
     } while(audio_data != NULL);

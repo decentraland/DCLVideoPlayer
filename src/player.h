@@ -8,7 +8,7 @@ typedef struct MediaPlayerContext {
     QueueContext* video_queue;
     QueueContext* audio_queue;
 
-    float last_video_frame_time;
+    double last_video_frame_time;
 
     double start_time;
     double paused_time;
@@ -22,6 +22,8 @@ void player_destroy(MediaPlayerContext* vpc);
 
 void player_play(MediaPlayerContext* vpc);
 void player_stop(MediaPlayerContext* vpc);
+
+int player_is_buffering(MediaPlayerContext* vpc);
 
 int player_is_playing(MediaPlayerContext* vpc);
 void player_set_paused(MediaPlayerContext* vpc, int paused);
@@ -37,8 +39,8 @@ void player_seek(MediaPlayerContext* vpc, float time);
 void player_process(MediaPlayerContext* vpc);
 
 double player_grab_video_frame(MediaPlayerContext* vpc, void** release_ptr, uint8_t** data);
-double player_grab_audio_frame(MediaPlayerContext* vpc, void** release_ptr, uint8_t** data);
+double player_grab_audio_frame(MediaPlayerContext* vpc, void** release_ptr, uint8_t** data, int* frame_size);
 void player_release_frame(MediaPlayerContext* vpc, void* release_ptr);
 
 void player_get_video_format(MediaPlayerContext* vpc, int* width, int* height);
-void player_get_audio_format(MediaPlayerContext* vpc, int* audio_frequency, int* channels);
+void player_get_audio_format(MediaPlayerContext* vpc, int* frequency, int* channels);

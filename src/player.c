@@ -67,6 +67,11 @@ void player_stop(MediaPlayerContext* vpc)
   logging("player_stop");
 }
 
+int player_is_buffering(MediaPlayerContext* vpc)
+{
+  return vpc->buffering;
+}
+
 int player_is_playing(MediaPlayerContext* vpc)
 {
   return vpc->playing;
@@ -146,7 +151,7 @@ void player_process(MediaPlayerContext* vpc)
   }
 }
 
-float _internal_grab_video_frame(MediaPlayerContext* vpc, void** release_ptr, QueueContext* queue, uint8_t** data, float current_time_in_sec, AVRational time_base)
+double _internal_grab_video_frame(MediaPlayerContext* vpc, void** release_ptr, QueueContext* queue, uint8_t** data, double current_time_in_sec, AVRational time_base)
 {
   AVFrame* frame = queue_peek_front(queue);
 
@@ -163,7 +168,7 @@ float _internal_grab_video_frame(MediaPlayerContext* vpc, void** release_ptr, Qu
         vpc->paused_time = get_time_in_seconds();
       }
 
-      return (float)time_in_sec;
+      return time_in_sec;
     } else {
       *data = NULL;
     }
@@ -176,8 +181,8 @@ float _internal_grab_video_frame(MediaPlayerContext* vpc, void** release_ptr, Qu
 double player_grab_video_frame(MediaPlayerContext* vpc, void** release_ptr, uint8_t** data)
 {
   if (vpc->playing == 1 && vpc->buffering == 0) {
-    float current_time_in_sec = (float) (get_time_in_seconds() - vpc->start_time);
-    float current_frame_time = 0.0;
+    double current_time_in_sec = get_time_in_seconds() - vpc->start_time;
+    double current_frame_time = 0.0;
     current_frame_time = _internal_grab_video_frame(vpc, release_ptr, vpc->video_queue, data, current_time_in_sec,
                                                     vpc->dectx->video_avs->time_base);
     if (current_frame_time != 0.0f) {
@@ -194,13 +199,14 @@ double player_grab_video_frame(MediaPlayerContext* vpc, void** release_ptr, uint
   return -1.0;
 }
 
-double player_grab_audio_frame(MediaPlayerContext* vpc, void** release_ptr, uint8_t** data)
+double player_grab_audio_frame(MediaPlayerContext* vpc, void** release_ptr, uint8_t** data, int* frame_size)
 {
   if (vpc->playing == 1 && vpc->buffering == 0) {
     AVFrame* frame = queue_pop_front(vpc->audio_queue);
     if (frame != NULL) {
       *release_ptr = frame;
       *data = frame->data[0];
+      *frame_size = frame->nb_samples;
 
       double time_in_sec = (double) (av_q2d(vpc->dectx->video_avs->time_base) * (double) frame->best_effort_timestamp);
       return time_in_sec;
