@@ -44,3 +44,7 @@ void player_release_frame(MediaPlayerContext* vpc, void* release_ptr);
 
 void player_get_video_format(MediaPlayerContext* vpc, int* width, int* height);
 void player_get_audio_format(MediaPlayerContext* vpc, int* frequency, int* channels);
+
+double player_get_start_time(MediaPlayerContext* vpc);
+void player_set_start_time(MediaPlayerContext* vpc, double time);
+double player_get_global_time(MediaPlayerContext* vpc);

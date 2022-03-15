@@ -232,3 +232,18 @@ void player_get_audio_format(MediaPlayerContext* vpc, int* frequency, int* chann
   *frequency = vpc->dectx->audio_frequency;
   *channels = vpc->dectx->audio_channels;
 }
+
+double player_get_start_time(MediaPlayerContext* vpc)
+{
+  vpc->start_time;
+}
+
+void player_set_start_time(MediaPlayerContext* vpc, double time)
+{
+  vpc->start_time = time;
+}
+
+double player_get_global_time(MediaPlayerContext* vpc)
+{
+  return get_time_in_seconds();
+}
