@@ -213,7 +213,7 @@ double player_grab_audio_frame(MediaPlayerContext* vpc, void** release_ptr, uint
       *data = frame->data[0];
       *frame_size = frame->nb_samples;
 
-      double time_in_sec = (double) (av_q2d(vpc->dectx->video_avs->time_base) * (double) frame->best_effort_timestamp);
+      double time_in_sec = (double) (av_q2d(vpc->dectx->audio_avs->time_base) * (double) frame->best_effort_timestamp);
       return time_in_sec;
     }
   }
