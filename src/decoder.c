@@ -141,6 +141,8 @@ DecoderContext* decoder_create(const char* url)
   dectx->av_frame = pFrame;
   dectx->av_packet = pPacket;
   dectx->loop = 0;
+  dectx->convert_buf = NULL;
+  dectx->convert_buf_size = 0;
 
   dectx->video_duration_in_sec = dectx->video_avs->duration <= 0 ? (double)(dectx->av_format_ctx->duration) / AV_TIME_BASE : dectx->video_avs->duration * av_q2d(dectx->video_avs->time_base);
   logging("video duration: %f", dectx->video_duration_in_sec);
@@ -166,21 +168,27 @@ static void save_ppm_frame(unsigned char *buf, int wrap, int xsize, int ysize, c
 }
 
 
-AVFrame* convert_to_rgb24(AVFrame *srcFrame, int frameNumber)
+AVFrame* convert_to_rgb24(DecoderContext *dectx, AVFrame *srcFrame)
 {
   int width = srcFrame->width;
   int height = srcFrame->height;
 
   enum AVPixelFormat dstFormat = AV_PIX_FMT_RGB24;
-  int bufSize  = av_image_get_buffer_size(dstFormat, width, height, 1);
-  uint8_t *buf = (uint8_t*) av_malloc(bufSize);
+  int buf_size  = av_image_get_buffer_size(dstFormat, width, height, 1);
+  if (buf_size != dectx->convert_buf_size) {
+    if (dectx->convert_buf != NULL)
+      av_free(dectx->convert_buf);
+    dectx->convert_buf_size = buf_size;
+    dectx->convert_buf = (uint8_t *) av_malloc(buf_size);
+  }
+
 
   AVFrame *dstFrame = av_frame_alloc();
 
   av_frame_copy_props(dstFrame, srcFrame);
   dstFrame->format = dstFormat;
 
-  av_image_fill_arrays(dstFrame->data, dstFrame->linesize, buf, dstFormat, width, height, 1);
+  av_image_fill_arrays(dstFrame->data, dstFrame->linesize, dectx->convert_buf, dstFormat, width, height, 1);
 
   struct SwsContext* conversion = sws_getContext(width,
                                           height,
@@ -202,7 +210,6 @@ AVFrame* convert_to_rgb24(AVFrame *srcFrame, int frameNumber)
   //char frame_filename[1024];
   //snprintf(frame_filename, sizeof(frame_filename), "out/%s-%d.ppm", "frame", frameNumber);
   //save_ppm_frame(dstFrame->data[0], dstFrame->linesize[0], dstFrame->width, dstFrame->height, frame_filename);
-
   return dstFrame;
 }
 
@@ -246,9 +253,9 @@ int decode_packet(AVCodecContext *avcc, AVPacket *pPacket, AVFrame *pFrame)
   return -1;
 }
 
-AVFrame* process_video_frame(AVFrame* frame, int frameNumber)
+AVFrame* process_video_frame(DecoderContext *dectx, AVFrame* frame)
 {
-  return convert_to_rgb24(frame, frameNumber);
+  return convert_to_rgb24(dectx, frame);
 }
 
 AVFrame* process_audio_frame(DecoderContext* dectx)
@@ -278,7 +285,7 @@ int decoder_process_frame(DecoderContext* dectx, ProcessOutput* processOutput)
       res = decode_packet(dectx->video_avcc, dectx->av_packet, dectx->av_frame);
       if (res < 0)
         return -1;
-      processOutput->videoFrame = process_video_frame(dectx->av_frame, dectx->video_avcc->frame_number);
+      processOutput->videoFrame = process_video_frame(dectx, dectx->av_frame);
       res = 0;
     } else if (dectx->av_packet->stream_index == dectx->audio_index) {
       //logging("[AUDIO] AVPacket->pts %" PRId64, dectx->av_packet->pts);
@@ -310,6 +317,9 @@ void decoder_seek(DecoderContext* dectx, float timeInSeconds)
 void decoder_destroy(DecoderContext* dectx)
 {
   logging("releasing all the resources");
+
+  if (dectx->convert_buf != NULL)
+    av_free(dectx->convert_buf);
 
   avformat_close_input(&dectx->av_format_ctx);
   av_packet_free(&dectx->av_packet);
