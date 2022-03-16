@@ -11,7 +11,7 @@ typedef struct MediaPlayerContext {
     double last_video_frame_time;
 
     double start_time;
-    double paused_time;
+    double video_progress_time;
     int playing;
     int loop;
     int buffering;

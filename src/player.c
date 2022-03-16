@@ -34,10 +34,10 @@ MediaPlayerContext* player_create(const char* url)
   vpc->audio_queue = queue_create(128);
 
   vpc->start_time = get_time_in_seconds();
-  vpc->paused_time = vpc->start_time;
   vpc->playing = 0;
   vpc->loop = 0;
   vpc->buffering = 1;
+  vpc->video_progress_time = 0.0;
   vpc->last_video_frame_time = 0.0f;
   return vpc;
 }
@@ -54,7 +54,7 @@ void player_destroy(MediaPlayerContext* vpc)
 void player_play(MediaPlayerContext* vpc)
 {
   if (vpc->playing == 1) return;
-  vpc->start_time = get_time_in_seconds() - (vpc->paused_time - vpc->start_time);
+  vpc->start_time = get_time_in_seconds() - vpc->video_progress_time;
   vpc->playing = 1;
   logging("player_play");
 }
@@ -63,7 +63,7 @@ void player_stop(MediaPlayerContext* vpc)
 {
   if (vpc->playing == 0) return;
   vpc->playing = 0;
-  vpc->paused_time = get_time_in_seconds();
+  vpc->video_progress_time = get_time_in_seconds() - vpc->start_time;
   logging("player_stop");
 }
 
@@ -106,10 +106,10 @@ float player_get_length(MediaPlayerContext* vpc)
 
 float player_get_playback_position(MediaPlayerContext* vpc)
 {
-  if (vpc->playing == 1) {
+  if (vpc->playing == 1 && vpc->buffering == 0) {
     return (float) (get_time_in_seconds() - vpc->start_time);
   } else {
-    return (float) (vpc->paused_time - vpc->start_time);
+    return (float) (vpc->video_progress_time);
   }
 }
 
@@ -119,10 +119,8 @@ void player_seek(MediaPlayerContext* vpc, float time)
   queue_clean(vpc->video_queue);
   queue_clean(vpc->audio_queue);
   vpc->buffering = 1;
-  if (vpc->playing == 1)
-    vpc->start_time = get_time_in_seconds() - time;
-  else
-    vpc->paused_time = vpc->start_time + time;
+  vpc->video_progress_time = time;
+  vpc->last_video_frame_time = 0.0f;
 }
 
 void player_process(MediaPlayerContext* vpc)
@@ -142,12 +140,13 @@ void player_process(MediaPlayerContext* vpc)
 
       if (vpc->buffering == 1) {
         if (queue_is_full(vpc->video_queue) == 1 || queue_is_full(vpc->audio_queue) == 1) {
-          vpc->start_time = get_time_in_seconds() - (vpc->paused_time - vpc->start_time);
+          vpc->start_time = get_time_in_seconds() - vpc->video_progress_time;
           vpc->buffering = 0;
+          logging("END BUFFERING!!");
         }
       }
 
-      logging("videoCount=%d audioCount=%d", vpc->video_queue->count, vpc->audio_queue->count);
+      //logging("videoCount=%d audioCount=%d", vpc->video_queue->count, vpc->audio_queue->count);
     }
   }
 }
@@ -158,6 +157,9 @@ double _internal_grab_video_frame(MediaPlayerContext* vpc, void** release_ptr, Q
 
   if (frame != NULL) {
     double time_in_sec = (double)(av_q2d(time_base) * (double)frame->best_effort_timestamp);
+
+    /*if (rand() % 300000 == 1)
+      logging("TIMEEE: %lf VS %lf -> %lf", time_in_sec, current_time_in_sec);*/
     if (time_in_sec <= current_time_in_sec) {
 
       *release_ptr = frame;
@@ -166,7 +168,9 @@ double _internal_grab_video_frame(MediaPlayerContext* vpc, void** release_ptr, Q
 
       if (queue_is_empty(queue)) {
         vpc->buffering = 1;
-        vpc->paused_time = get_time_in_seconds();
+        vpc->video_progress_time = current_time_in_sec;
+        vpc->last_video_frame_time = 0.0f;
+        logging("START BUFFERING!!!");
       }
 
       return time_in_sec;

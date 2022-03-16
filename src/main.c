@@ -70,7 +70,6 @@ int main()
 
   player_play(vpc);
   player_set_loop(vpc, 1);
-  player_seek(vpc, 588.0f);
   int last_second = 0;
   int testStatus = 0;
   while(1) {
@@ -102,6 +101,12 @@ int main()
         player_release_frame(vpc, release_ptr);
     } while(audio_data != NULL);
 
+    if (checkpoint_time_in_seconds >= 3.0f) {
+      float random_time = (float)(rand() % 580);
+      logging("# Random time %f", random_time);
+      player_seek(vpc, random_time);
+      checkpointTime = get_time_in_seconds();
+    }
     /*if (testStatus == 0) {
       if (checkpoint_time_in_seconds >= 6.0f) {
         logging("############### TEST STATUS 1 ############################");
