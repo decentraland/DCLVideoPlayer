@@ -175,9 +175,11 @@ double _internal_grab_video_frame(MediaPlayerContext* vpc, void** release_ptr, Q
 
       return time_in_sec;
     } else {
+      *release_ptr = NULL;
       *data = NULL;
     }
   } else {
+    *release_ptr = NULL;
     *data = NULL;
   }
   return 0.0f;
@@ -201,6 +203,9 @@ double player_grab_video_frame(MediaPlayerContext* vpc, void** release_ptr, uint
     }
     return current_frame_time;
   }
+
+  *release_ptr = NULL;
+  *data = NULL;
   return -1.0;
 }
 
@@ -217,6 +222,8 @@ double player_grab_audio_frame(MediaPlayerContext* vpc, void** release_ptr, uint
       return time_in_sec;
     }
   }
+  *release_ptr = NULL;
+  *data = NULL;
   return -1.0;
 }
 
