@@ -28,6 +28,12 @@ MediaPlayerContext *player_create(const char *url) {
   logging("player_create %s", url);
   MediaPlayerContext *vpc = (MediaPlayerContext *) calloc(1, sizeof(MediaPlayerContext));
   vpc->dectx = decoder_create(url);
+
+  if (vpc->dectx == NULL) {
+    free(vpc);
+    return NULL;
+  }
+
   vpc->video_queue = queue_create(64);
   vpc->audio_queue = queue_create(128);
 
