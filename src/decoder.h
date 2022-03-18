@@ -31,9 +31,6 @@ typedef struct DecoderContext
   // https://ffmpeg.org/doxygen/trunk/structAVPacket.html
   AVPacket *av_packet;
 
-  uint8_t *convert_buf;
-  int convert_buf_size;
-
   SwrContext*	swr_ctx;
   int loop;
   float video_duration_in_sec;

@@ -149,7 +149,7 @@ DecoderContext* decoder_create(const char* url)
   return dectx;
 }
 
-
+#ifdef SAVE_FRAME_TO_FILE
 static void save_ppm_frame(unsigned char *buf, int wrap, int xsize, int ysize, char *filename)
 {
   FILE *f;
@@ -164,6 +164,7 @@ static void save_ppm_frame(unsigned char *buf, int wrap, int xsize, int ysize, c
       fwrite(buf + i * wrap, 3, xsize, f);
   fclose(f);
 }
+#endif
 
 
 AVFrame* convert_to_rgb24(AVFrame *srcFrame, int frameNumber)
@@ -173,14 +174,15 @@ AVFrame* convert_to_rgb24(AVFrame *srcFrame, int frameNumber)
 
   enum AVPixelFormat dstFormat = AV_PIX_FMT_RGB24;
   int bufSize  = av_image_get_buffer_size(dstFormat, width, height, 1);
-  uint8_t *buf = (uint8_t*) av_malloc(bufSize);
+  AVBufferRef *buf = av_buffer_alloc(bufSize);
 
   AVFrame *dstFrame = av_frame_alloc();
 
   av_frame_copy_props(dstFrame, srcFrame);
   dstFrame->format = dstFormat;
+  dstFrame->buf[0] = buf;
 
-  av_image_fill_arrays(dstFrame->data, dstFrame->linesize, buf, dstFormat, width, height, 1);
+  av_image_fill_arrays(dstFrame->data, dstFrame->linesize, buf->data, dstFormat, width, height, 1);
 
   struct SwsContext* conversion = sws_getContext(width,
                                           height,
@@ -199,11 +201,11 @@ AVFrame* convert_to_rgb24(AVFrame *srcFrame, int frameNumber)
   dstFrame->width = srcFrame->width;
   dstFrame->height = srcFrame->height;
 
-  //char frame_filename[1024];
-  //snprintf(frame_filename, sizeof(frame_filename), "out/%s-%d.ppm", "frame", frameNumber);
-  //save_ppm_frame(dstFrame->data[0], dstFrame->linesize[0], dstFrame->width, dstFrame->height, frame_filename);
-  //av_free(buf);
-  memset(buf, 0, bufSize);
+#ifdef SAVE_FILE_TO_FILE
+  char frame_filename[1024];
+  snprintf(frame_filename, sizeof(frame_filename), "out/%s-%d.ppm", "frame", frameNumber);
+  save_ppm_frame(dstFrame->data[0], dstFrame->linesize[0], dstFrame->width, dstFrame->height, frame_filename);
+#endif
   return dstFrame;
 }
 
