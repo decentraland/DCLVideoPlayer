@@ -5,6 +5,7 @@ set(CMAKE_C_STANDARD 17)
 
 option(STATIC_LIB "Build only static library" OFF)
 set(installPath ${CMAKE_SYSTEM_NAME}-${CMAKE_HOST_SYSTEM_PROCESSOR})
+set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
 if (MSVC)
     message(MSVC Detected)
