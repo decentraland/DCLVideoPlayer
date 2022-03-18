@@ -31,30 +31,30 @@ jobs:
             ffmpeg_path: "C:/Program Files/FFmpeg/",
             static: "OFF"
           }
-#          - {
-#            name: "macOS Latest Clang",
-#            os: macos-latest,
-#            artifact: "macos_clang.7z",
-#            build_type: "Release",
-#            cc: "clang",
-#            cxx: "clang++",
-#            archiver: "7za a",
-#            generators: "Ninja",
-#            ffmpeg_path: "/Users/runner/work/ffmpeg-static/ffmpeg-static/target/",
-#            static: "ON"
-#          }
           - {
-            name: "Ubuntu Latest GCC",
-            os: ubuntu-latest,
-            artifact: "ubuntu_gcc.7z",
+            name: "macOS Latest Clang",
+            os: macos-latest,
+            artifact: "macos_clang.7z",
             build_type: "Release",
-            cc: "gcc",
-            cxx: "g++",
-            archiver: "7z a",
+            cc: "clang",
+            cxx: "clang++",
+            archiver: "7za a",
             generators: "Ninja",
-            ffmpeg_path: "/home/runner/work/ffmpeg-static/ffmpeg-static/target/",
+            ffmpeg_path: "/Users/runner/work/ffmpeg-static/ffmpeg-static/target/",
             static: "ON"
           }
+#          - {
+#            name: "Ubuntu Latest GCC",
+#            os: ubuntu-latest,
+#            artifact: "ubuntu_gcc.7z",
+#            build_type: "Release",
+#            cc: "gcc",
+#            cxx: "g++",
+#            archiver: "7z a",
+#            generators: "Ninja",
+#            ffmpeg_path: "/home/runner/work/ffmpeg-static/ffmpeg-static/target/",
+#            static: "ON"
+#          }
 
     steps:
       # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
