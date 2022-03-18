@@ -30,7 +30,7 @@ jobs:
             archiver: "7z a",
             generators: "Ninja",
             ffmpeg_path: "C:/Program Files/FFmpeg/",
-            static: "ON"
+            static: "OFF"
           }
           - {
             name: "macOS Latest Clang",

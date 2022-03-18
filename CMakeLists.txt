@@ -50,6 +50,9 @@ if (WIN32)
         list (APPEND resolvedLibraries "${_resolvedFile}")
     endforeach()
     install(FILES ${resolvedLibraries} DESTINATION ${installPath})
+
+    message(AVLIBRARIES ${AVLIBRARIES})
+    message(resolvedLibraries ${resolvedLibraries})
 else()
     find_package(PkgConfig REQUIRED)
     pkg_check_modules(LIBAV REQUIRED IMPORTED_TARGET
