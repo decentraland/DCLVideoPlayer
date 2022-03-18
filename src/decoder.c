@@ -70,12 +70,12 @@ int prepare_decoder(DecoderContext *dectx) {
       dectx->video_index = i;
 
       if (fill_stream_info(dectx->video_avs, &dectx->video_avc, &dectx->video_avcc)) { return -1; }
-      prepare_swr(dectx);
     } else if (dectx->av_format_ctx->streams[i]->codecpar->codec_type == AVMEDIA_TYPE_AUDIO) {
       dectx->audio_avs = dectx->av_format_ctx->streams[i];
       dectx->audio_index = i;
 
       if (fill_stream_info(dectx->audio_avs, &dectx->audio_avc, &dectx->audio_avcc)) { return -1; }
+      prepare_swr(dectx);
     } else {
       logging("skipping streams other than audio and video");
     }

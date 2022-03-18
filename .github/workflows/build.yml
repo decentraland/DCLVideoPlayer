@@ -139,6 +139,11 @@ jobs:
         run: |
           cmake --build . --config ${{ matrix.config.build_type }}
 
+      - name: Test
+        shell: bash
+        run: |
+          ./test
+
       - name: Install Strip
         shell: bash
         run: |
