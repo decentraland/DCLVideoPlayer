@@ -25,6 +25,7 @@ jobs:
             build_type: "Release",
             cc: "cl",
             cxx: "cl",
+            generators: "Visual Studio 15 2017",
             environment_script: "C:/Program Files (x86)/Microsoft Visual Studio/2019/Enterprise/VC/Auxiliary/Build/vcvars64.bat",
             ffmpeg_path: "C:/Program Files/FFmpeg/",
             static: "OFF"
