@@ -19,7 +19,7 @@ endif()
 
 add_library(${PROJECT_NAME} SHARED src/decoder.c src/player.c src/framequeue.c)
 
-if (WINDOWS)
+if (WIN32)
     find_path(AVCODEC_INCLUDE_DIR libavcodec/avcodec.h)
     find_library(AVCODEC_LIBRARY avcodec)
 
