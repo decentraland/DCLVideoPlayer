@@ -57,9 +57,8 @@ else()
     target_link_libraries(${PROJECT_NAME} PUBLIC ${AVLIBRARIES})
 
     if (WIN32)
-        file(GLOB_RECURSE AVDLLS
-                "${CMAKE_PREFIX_PATH}"
-                "*.dll"
+        file(GLOB AVDLLS
+                "${CMAKE_PREFIX_PATH}/bin/*.dll"
         )
         message(AVDLLS ${AVDLLS})
         install(FILES ${AVDLLS} DESTINATION ${installPath})
