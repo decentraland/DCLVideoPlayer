@@ -19,14 +19,15 @@ jobs:
       matrix:
         config:
           - {
-            name: "Windows Latest MinGW",
+            name: "Windows Latest MSVC",
             os: windows-latest,
-            artifact: "windows_mingw.7z",
+            artifact: "windows_msvc.7z",
             build_type: "Release",
-            cc: "gcc",
-            cxx: "g++",
+            cc: "cl",
+            cxx: "cl",
             archiver: "7z a",
-            generators: "Ninja",
+            environment_script: "C:/Program Files (x86)/Microsoft Visual Studio/2019/Enterprise/VC/Auxiliary/Build/vcvars64.bat",
+            generators: "Visual Studio 16 2019",
             ffmpeg_path: "C:/Program Files/FFmpeg/",
             static: "OFF"
           }

@@ -6,6 +6,13 @@ set(CMAKE_C_STANDARD 17)
 option(STATIC_LIB "Build only static library" OFF)
 set(installPath ${CMAKE_SYSTEM_NAME}-${CMAKE_HOST_SYSTEM_PROCESSOR})
 
+if (MSVC)
+    message(MSVC Detected)
+    set(CMAKE_C_FLAGS "/MT")
+    set(CMAKE_C_FLAGS_RELEASE "/MT")
+    set(CMAKE_C_FLAGS_DEBUG "/MTd")
+endif()
+
 if(STATIC_LIB)
     set(CMAKE_FIND_LIBRARY_SUFFIXES ".a")
 endif()
