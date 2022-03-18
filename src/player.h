@@ -1,11 +1,7 @@
 #pragma once
 
 #ifdef _WIN32
-#  ifdef MODULE_API_EXPORTS
-#    define export __declspec(dllexport)
-#  else
-#    define export __declspec(dllimport)
-#  endif
+#  define export __declspec(dllimport)
 #else
 #  define export
 #endif
