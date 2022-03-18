@@ -1,8 +1,7 @@
 #include "framequeue.h"
 
-QueueContext* queue_create(int maxCount)
-{
-  QueueContext* queue = (QueueContext*)calloc(1, sizeof(QueueContext));
+QueueContext *queue_create(int maxCount) {
+  QueueContext *queue = (QueueContext *) calloc(1, sizeof(QueueContext));
   queue->first = NULL;
   queue->last = NULL;
   queue->count = 0;
@@ -10,25 +9,22 @@ QueueContext* queue_create(int maxCount)
   return queue;
 }
 
-int queue_is_full(QueueContext* queue)
-{
+int queue_is_full(QueueContext *queue) {
   if (queue->count >= queue->maxCount)
     return 1;
   else
     return 0;
 }
 
-int queue_is_empty(QueueContext* queue)
-{
+int queue_is_empty(QueueContext *queue) {
   if (queue->count == 0)
     return 1;
   else
     return 0;
 }
 
-void queue_clean(QueueContext* queue)
-{
-  AVFrame* frame = NULL;
+void queue_clean(QueueContext *queue) {
+  AVFrame *frame = NULL;
   do {
     frame = queue_pop_front(queue);
     if (frame != NULL)
@@ -38,25 +34,20 @@ void queue_clean(QueueContext* queue)
   } while (1);
 }
 
-AVFrame* queue_peek_front(QueueContext* queue)
-{
-  if (queue->first)
-  {
-    AVFrame* frame = queue->first->frame;
+AVFrame *queue_peek_front(QueueContext *queue) {
+  if (queue->first) {
+    AVFrame *frame = queue->first->frame;
     return frame;
   }
   return NULL;
 }
 
-AVFrame* queue_pop_front(QueueContext* queue)
-{
-  if (queue->first)
-  {
-    FrameBuffer* firstFrameBuffer = queue->first;
-    AVFrame* frame = firstFrameBuffer->frame;
+AVFrame *queue_pop_front(QueueContext *queue) {
+  if (queue->first) {
+    FrameBuffer *firstFrameBuffer = queue->first;
+    AVFrame *frame = firstFrameBuffer->frame;
     queue->first = firstFrameBuffer->nextFrame;
-    if (firstFrameBuffer->nextFrame == NULL)
-    {
+    if (firstFrameBuffer->nextFrame == NULL) {
       queue->last = firstFrameBuffer->nextFrame;
     }
     --queue->count;
@@ -66,9 +57,8 @@ AVFrame* queue_pop_front(QueueContext* queue)
   return NULL;
 }
 
-void queue_push(QueueContext* queue, AVFrame* frame)
-{
-  FrameBuffer* frameBuffer = (FrameBuffer*)calloc(1, sizeof(FrameBuffer));
+void queue_push(QueueContext *queue, AVFrame *frame) {
+  FrameBuffer *frameBuffer = (FrameBuffer *) calloc(1, sizeof(FrameBuffer));
   frameBuffer->nextFrame = NULL;
   frameBuffer->frame = frame;
 
@@ -85,9 +75,8 @@ void queue_push(QueueContext* queue, AVFrame* frame)
   ++queue->count;
 }
 
-void queue_destroy(QueueContext** queueRef)
-{
-  QueueContext* queue = *queueRef;
+void queue_destroy(QueueContext **queueRef) {
+  QueueContext *queue = *queueRef;
 
   queue_clean(queue);
 

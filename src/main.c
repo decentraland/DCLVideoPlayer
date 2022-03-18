@@ -6,13 +6,11 @@
 #include <errno.h>
 
 /* msleep(): Sleep for the requested number of milliseconds. */
-int msleep(long msec)
-{
+int msleep(long msec) {
   struct timespec ts;
   int res;
 
-  if (msec < 0)
-  {
+  if (msec < 0) {
     errno = EINVAL;
     return -1;
   }
@@ -26,26 +24,26 @@ int msleep(long msec)
 
   return res;
 }
-double get_time_in_seconds()
-{
+
+double get_time_in_seconds() {
   struct timespec tms;
 
   /* The C11 way */
   /* if (! timespec_get(&tms, TIME_UTC)) { */
 
   /* POSIX.1-2008 way */
-  if (clock_gettime(CLOCK_REALTIME,&tms)) {
+  if (clock_gettime(CLOCK_REALTIME, &tms)) {
     return -1;
   }
   /* seconds, multiplied with 1 million */
   int64_t micros = tms.tv_sec * 1000000;
   /* Add full microseconds */
-  micros += tms.tv_nsec/1000;
+  micros += tms.tv_nsec / 1000;
   /* round up if necessary */
   if (tms.tv_nsec % 1000 >= 500) {
     ++micros;
   }
-  double seconds = ((double)micros) / 1000000.0;
+  double seconds = ((double) micros) / 1000000.0;
   return seconds;
 }
 
@@ -83,29 +81,28 @@ double get_time_in_seconds()
     return 0;
 }*/
 
-int main()
-{
+int main() {
   double checkpointTime = get_time_in_seconds();
   logging("Hello world");
 
-  MediaPlayerContext* vpc = player_create(
+  MediaPlayerContext *vpc = player_create(
           "http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4");
 
   player_play(vpc);
   player_set_loop(vpc, 1);
   int last_second = 0;
   int testStatus = 0;
-  while(1) {
+  while (1) {
     double checkpoint_time_in_seconds = get_time_in_seconds() - checkpointTime;
     double current_time_in_seconds = player_get_playback_position(vpc);
-    if (last_second != (int)current_time_in_seconds) {
-      last_second = (int)current_time_in_seconds;
-      logging("Second: %d %d", last_second, (int)checkpoint_time_in_seconds);
+    if (last_second != (int) current_time_in_seconds) {
+      last_second = (int) current_time_in_seconds;
+      logging("Second: %d %d", last_second, (int) checkpoint_time_in_seconds);
     }
     player_process(vpc);
 
-    void* release_ptr = NULL;
-    uint8_t* videoData = NULL;
+    void *release_ptr = NULL;
+    uint8_t *videoData = NULL;
     do {
       videoData = NULL;
       player_grab_video_frame(vpc, &release_ptr, &videoData);
@@ -113,7 +110,7 @@ int main()
         logging("New frame! %f", player_get_playback_position(vpc));
         player_release_frame(vpc, release_ptr);
       }
-    } while(videoData != NULL);
+    } while (videoData != NULL);
 
     uint8_t *audio_data = NULL;
     int frame_size = 0;
@@ -122,10 +119,10 @@ int main()
       player_grab_audio_frame(vpc, &release_ptr, &audio_data, &frame_size);
       if (audio_data != NULL)
         player_release_frame(vpc, release_ptr);
-    } while(audio_data != NULL);
+    } while (audio_data != NULL);
 
     if (checkpoint_time_in_seconds >= 3.0f) {
-      float random_time = (float)(rand() % 580);
+      float random_time = (float) (rand() % 580);
       logging("# Random time %f", random_time);
       player_seek(vpc, random_time);
       checkpointTime = get_time_in_seconds();
