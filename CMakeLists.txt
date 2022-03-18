@@ -21,8 +21,6 @@ message(CMAKE_FIND_LIBRARY_SUFFIXES ${CMAKE_FIND_LIBRARY_SUFFIXES})
 
 if(APPLE)
     set(CMAKE_EXE_LINKER_FLAGS "-static-libstdc++")
-else()
-    set(CMAKE_EXE_LINKER_FLAGS "-static-libgcc -static-libstdc++ -lpthread -lm -lz")
 endif()
 
 add_library(${PROJECT_NAME} SHARED src/decoder.c src/player.c src/framequeue.c)
