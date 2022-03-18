@@ -27,22 +27,22 @@ jobs:
             cxx: "cl",
             environment_script: "C:/Program Files (x86)/Microsoft Visual Studio/2019/Enterprise/VC/Auxiliary/Build/vcvars64.bat",
             archiver: "7z a",
-            generators: "Ninja"
+            generators: "Ninja",
             ffmpeg_path: "C:/Program Files/FFmpeg/",
             static: "OFF"
           }
-          - {
-            name: "macOS Latest Clang",
-            os: macos-latest,
-            artifact: "macos_clang.7z",
-            build_type: "Release",
-            cc: "clang",
-            cxx: "clang++",
-            archiver: "7za a",
-            generators: "Ninja",
-            ffmpeg_path: "/Users/runner/work/ffmpeg-static/ffmpeg-static/target/",
-            static: "ON"
-          }
+#          - {
+#            name: "macOS Latest Clang",
+#            os: macos-latest,
+#            artifact: "macos_clang.7z",
+#            build_type: "Release",
+#            cc: "clang",
+#            cxx: "clang++",
+#            archiver: "7za a",
+#            generators: "Ninja",
+#            ffmpeg_path: "/Users/runner/work/ffmpeg-static/ffmpeg-static/target/",
+#            static: "ON"
+#          }
           - {
             name: "Ubuntu Latest GCC",
             os: ubuntu-latest,
