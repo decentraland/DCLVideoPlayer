@@ -19,7 +19,20 @@ endif()
 
 add_library(${PROJECT_NAME} SHARED src/decoder.c src/player.c src/framequeue.c)
 
-if (WIN32)
+if (STATIC_LIB)
+    find_package(PkgConfig REQUIRED)
+    pkg_check_modules(LIBAV REQUIRED IMPORTED_TARGET
+            libavdevice
+            libavfilter
+            libavformat
+            libavcodec
+            libswresample
+            libswscale
+            libavutil
+            )
+
+    target_link_libraries(${PROJECT_NAME} PUBLIC PkgConfig::LIBAV)
+else()
     find_path(AVCODEC_INCLUDE_DIR libavcodec/avcodec.h)
     find_library(AVCODEC_LIBRARY avcodec)
 
@@ -43,29 +56,21 @@ if (WIN32)
     target_include_directories(${PROJECT_NAME} PUBLIC ${AVCODEC_INCLUDE_DIR} ${AVFORMAT_INCLUDE_DIR} ${AVUTIL_INCLUDE_DIR} ${AVDEVICE_INCLUDE_DIR} ${SWRESAMPLE_INCLUDE_DIR} ${SWRESAMPLE_INCLUDE_DIR})
     target_link_libraries(${PROJECT_NAME} PUBLIC ${AVLIBRARIES})
 
-    set (installPath ${CMAKE_SYSTEM_NAME}-${CMAKE_HOST_SYSTEM_PROCESSOR})
-    set (resolvedLibraries "")
-    foreach (_file ${AVLIBRARIES})
-        get_filename_component(_resolvedFile "${_file}" REALPATH)
-        list (APPEND resolvedLibraries "${_resolvedFile}")
-    endforeach()
-    install(FILES ${resolvedLibraries} DESTINATION ${installPath})
-
-    message(AVLIBRARIES ${AVLIBRARIES})
-    message(resolvedLibraries ${resolvedLibraries})
-else()
-    find_package(PkgConfig REQUIRED)
-    pkg_check_modules(LIBAV REQUIRED IMPORTED_TARGET
-        libavdevice
-        libavfilter
-        libavformat
-        libavcodec
-        libswresample
-        libswscale
-        libavutil
-    )
-
-    target_link_libraries(${PROJECT_NAME} PUBLIC PkgConfig::LIBAV)
+    if (WIN32)
+        file(GLOB_RECURSE AVDLLS
+                "${CMAKE_PREFIX_PATH}"
+                "*.dll"
+        )
+        message(AVDLLS ${AVDLLS})
+        install(FILES ${AVDLLS} DESTINATION ${installPath})
+    else()
+        set (resolvedLibraries "")
+        foreach (_file ${AVLIBRARIES})
+            get_filename_component(_resolvedFile "${_file}" REALPATH)
+            list (APPEND resolvedLibraries "${_resolvedFile}")
+        endforeach()
+        install(FILES ${resolvedLibraries} DESTINATION ${installPath})
+    endif()
 endif()
 
 add_executable(${PROJECT_NAME}Test src/main.c)
