@@ -1,7 +1,7 @@
 #pragma once
 
 #ifdef _WIN32
-#  define export __declspec(dllimport)
+#  define export __declspec(dllexport)
 #else
 #  define export
 #endif
