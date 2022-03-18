@@ -82,7 +82,7 @@ jobs:
           branch: master
           name: ${{ matrix.config.artifact }}
           path: ${{ matrix.config.ffmpeg_path }}
-          repo: kuruk-mm/ffmpeg-static
+          repo: decentraland/ffmpeg-static
           check_artifacts: true
       - name: Install dependencies on windows
         if: startsWith(matrix.config.os, 'windows')
