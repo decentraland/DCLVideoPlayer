@@ -39,6 +39,10 @@ void test_format(const char *test_name, const char *url, uint8_t expected_status
 
   assert(player_get_status(vpc) == expected_status);
 
+  if (player_get_status(vpc) != StatusReady) {
+    return;
+  }
+
   player_play(vpc);
 
   int video_frames = 0;
