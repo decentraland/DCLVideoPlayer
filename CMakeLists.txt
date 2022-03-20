@@ -60,7 +60,7 @@ else()
         file(GLOB AVDLLS
                 "${CMAKE_PREFIX_PATH}/bin/*.dll"
         )
-        file(COPY "${CMAKE_PREFIX_PATH}/bin/*.dll"
+        file(COPY AVDLLS
                 DESTINATION "."
         )
         message(AVDLLS ${AVDLLS})
