@@ -45,7 +45,6 @@ void test_format(const char *test_name, const char *url) {
   int video_frames = 0;
   int audio_frames = 0;
   while (audio_frames < 10 || video_frames < 10) {
-    player_process(vpc);
 
     void *release_ptr = NULL;
     uint8_t *videoData = NULL;
@@ -77,6 +76,7 @@ void test_format(const char *test_name, const char *url) {
   }
 
   player_destroy(vpc);
+  player_join_threads();
 }
 
 void test_loop() {

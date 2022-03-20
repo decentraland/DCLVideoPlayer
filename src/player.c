@@ -2,6 +2,11 @@
 #include "logger.h"
 #include <libavformat/avformat.h>
 
+typedef struct ThreadArgs {
+    MediaPlayerContext *vpc;
+    const char* url;
+} ThreadArgs;
+
 double get_time_in_seconds() {
   struct timespec tms;
 
@@ -24,18 +29,72 @@ double get_time_in_seconds() {
   return seconds;
 }
 
-MediaPlayerContext *player_create(const char *url) {
-  logging("player_create %s", url);
-  MediaPlayerContext *vpc = (MediaPlayerContext *) calloc(1, sizeof(MediaPlayerContext));
+void* _run_decoder(void* args) {
+  ThreadArgs *thread_args = (ThreadArgs *)args;
+  MediaPlayerContext *vpc = thread_args->vpc;
+  const char* url = thread_args->url;
+  free(thread_args);
+
   vpc->dectx = decoder_create(url);
 
   if (vpc->dectx == NULL) {
-    free(vpc);
+    vpc->failed = 1;
+    pthread_exit(NULL);
     return NULL;
   }
 
-  vpc->video_queue = queue_create(64);
-  vpc->audio_queue = queue_create(128);
+  vpc->loading = 0;
+  while(vpc->thread_running == 1) {
+    int res = -1;
+    if (safe_queue_is_full(vpc->video_queue) == 0 && safe_queue_is_full(vpc->audio_queue) == 0) {
+      ProcessOutput processOutput;
+      res = decoder_process_frame(vpc->dectx, &processOutput);
+      if (res == 0) {
+        if (processOutput.videoFrame) {
+          safe_queue_push(vpc->video_queue, processOutput.videoFrame);
+        }
+
+        if (processOutput.audioFrame) {
+          safe_queue_push(vpc->audio_queue, processOutput.audioFrame);
+        }
+
+        //logging("videoCount=%d audioCount=%d", vpc->video_queue->count, vpc->audio_queue->count);
+      }
+    }
+  }
+
+  decoder_destroy(vpc->dectx);
+  safe_queue_destroy(&vpc->video_queue);
+  safe_queue_destroy(&vpc->audio_queue);
+  free(vpc);
+
+  logging("THREAD EXIT!!");
+  pthread_exit(NULL);
+  return NULL;
+}
+
+void player_join_threads()
+{
+  while(1) {
+    pthread_t thread = queue_pop_front(thread_queue);
+    if (thread != NULL) {
+      int res = pthread_join(thread, NULL);
+      logging("thread exit with code=%d", res);
+    } else {
+      break;
+    }
+  }
+}
+
+MediaPlayerContext *player_create(const char *url) {
+  logging("player_create %s", url);
+  MediaPlayerContext *vpc = (MediaPlayerContext *) calloc(1, sizeof(MediaPlayerContext));
+
+  vpc->failed = 0;
+  vpc->loading = 1;
+  vpc->dectx = NULL;
+  vpc->video_queue = safe_queue_create(64);
+  vpc->audio_queue = safe_queue_create(128);
 
   vpc->start_time = get_time_in_seconds();
   vpc->playing = 0;
@@ -43,15 +102,28 @@ MediaPlayerContext *player_create(const char *url) {
   vpc->buffering = 1;
   vpc->video_progress_time = 0.0;
   vpc->last_video_frame_time = 0.0f;
+  vpc->thread_running = 1;
+
+  pthread_t thread_id;
+  ThreadArgs* thread_args = (ThreadArgs*)calloc(1, sizeof(ThreadArgs));
+  thread_args->vpc = vpc;
+  thread_args->url = url;
+
+  int err = pthread_create(&(thread_id), NULL, &_run_decoder, (void*)thread_args);
+  if (err != 0) {
+    vpc->failed = 1;
+    logging("[ERROR] can't create thread :[%s]", strerror(err));
+  } else {
+    if (thread_queue == NULL)
+      thread_queue = queue_create();
+    queue_push(thread_queue, thread_id);
+  }
   return vpc;
 }
 
 void player_destroy(MediaPlayerContext *vpc) {
   logging("player_destroy");
-  decoder_destroy(vpc->dectx);
-  queue_destroy(&vpc->video_queue);
-  queue_destroy(&vpc->audio_queue);
-  free(vpc);
+  vpc->thread_running = 0;
 }
 
 void player_play(MediaPlayerContext *vpc) {
@@ -66,6 +138,14 @@ void player_stop(MediaPlayerContext *vpc) {
   vpc->playing = 0;
   vpc->video_progress_time = get_time_in_seconds() - vpc->start_time;
   logging("player_stop");
+}
+
+int player_failed(MediaPlayerContext *vpc) {
+  return vpc->failed;
+}
+
+int player_is_loading(MediaPlayerContext *vpc) {
+  return vpc->loading;
 }
 
 int player_is_buffering(MediaPlayerContext *vpc) {
@@ -109,43 +189,16 @@ float player_get_playback_position(MediaPlayerContext *vpc) {
 
 void player_seek(MediaPlayerContext *vpc, float time) {
   decoder_seek(vpc->dectx, time);
-  queue_clean(vpc->video_queue);
-  queue_clean(vpc->audio_queue);
+  safe_queue_clean(vpc->video_queue);
+  safe_queue_clean(vpc->audio_queue);
   vpc->buffering = 1;
   vpc->video_progress_time = time;
   vpc->last_video_frame_time = 0.0f;
 }
 
-void player_process(MediaPlayerContext *vpc) {
-  int res = -1;
-  if (queue_is_full(vpc->video_queue) == 0 && queue_is_full(vpc->audio_queue) == 0) {
-    ProcessOutput processOutput;
-    res = decoder_process_frame(vpc->dectx, &processOutput);
-    if (res == 0) {
-      if (processOutput.videoFrame) {
-        queue_push(vpc->video_queue, processOutput.videoFrame);
-      }
-
-      if (processOutput.audioFrame) {
-        queue_push(vpc->audio_queue, processOutput.audioFrame);
-      }
-
-      if (vpc->buffering == 1) {
-        if (queue_is_full(vpc->video_queue) == 1 || queue_is_full(vpc->audio_queue) == 1) {
-          vpc->start_time = get_time_in_seconds() - vpc->video_progress_time;
-          vpc->buffering = 0;
-          logging("END BUFFERING!!");
-        }
-      }
-
-      //logging("videoCount=%d audioCount=%d", vpc->video_queue->count, vpc->audio_queue->count);
-    }
-  }
-}
-
-double _internal_grab_video_frame(MediaPlayerContext *vpc, void **release_ptr, QueueContext *queue, uint8_t **data,
+double _internal_grab_video_frame(MediaPlayerContext *vpc, void **release_ptr, SafeQueueContext *queue, uint8_t **data,
                                   double current_time_in_sec, AVRational time_base) {
-  AVFrame *frame = queue_peek_front(queue);
+  AVFrame *frame = safe_queue_peek_front(queue);
 
   if (frame != NULL) {
     double time_in_sec = (double) (av_q2d(time_base) * (double) frame->best_effort_timestamp);
@@ -156,9 +209,9 @@ double _internal_grab_video_frame(MediaPlayerContext *vpc, void **release_ptr, Q
 
       *release_ptr = frame;
       *data = frame->data[0];
-      queue_pop_front(queue);
+      safe_queue_pop_front(queue);
 
-      if (queue_is_empty(queue)) {
+      if (safe_queue_is_empty(queue)) {
         vpc->buffering = 1;
         vpc->video_progress_time = current_time_in_sec;
         vpc->last_video_frame_time = 0.0f;
@@ -178,6 +231,15 @@ double _internal_grab_video_frame(MediaPlayerContext *vpc, void **release_ptr, Q
 }
 
 double player_grab_video_frame(MediaPlayerContext *vpc, void **release_ptr, uint8_t **data) {
+
+  if (vpc->buffering == 1) {
+    if (safe_queue_is_full(vpc->video_queue) == 1 || safe_queue_is_full(vpc->audio_queue) == 1) {
+      vpc->start_time = get_time_in_seconds() - vpc->video_progress_time;
+      vpc->buffering = 0;
+      logging("End buffering");
+    }
+  }
+
   if (vpc->playing == 1 && vpc->buffering == 0) {
     double current_time_in_sec = get_time_in_seconds() - vpc->start_time;
     double current_frame_time = 0.0;
@@ -203,7 +265,7 @@ double player_grab_video_frame(MediaPlayerContext *vpc, void **release_ptr, uint
 
 double player_grab_audio_frame(MediaPlayerContext *vpc, void **release_ptr, uint8_t **data, int *frame_size) {
   if (vpc->playing == 1 && vpc->buffering == 0) {
-    AVFrame *frame = queue_pop_front(vpc->audio_queue);
+    AVFrame *frame = safe_queue_pop_front(vpc->audio_queue);
     if (frame != NULL) {
       *release_ptr = frame;
       *data = frame->data[0];

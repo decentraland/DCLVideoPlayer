@@ -1,21 +1,29 @@
 #pragma once
 
 #include "decoder.h"
-#include "framequeue.h"
+#include "safeframequeue.h"
+#include "queue.h"
+
+QueueContext* thread_queue = NULL;
 
 typedef struct MediaPlayerContext {
     DecoderContext *dectx;
-    QueueContext *video_queue;
-    QueueContext *audio_queue;
+    SafeQueueContext *video_queue;
+    SafeQueueContext *audio_queue;
 
     double last_video_frame_time;
 
     double start_time;
     double video_progress_time;
-    int playing;
-    int loop;
-    int buffering;
+    uint8_t playing;
+    uint8_t loop;
+    uint8_t buffering;
+    uint8_t loading;
+    uint8_t failed;
+    uint8_t thread_running;
 } MediaPlayerContext;
+
+void player_join_threads();
 
 MediaPlayerContext *player_create(const char *url);
 
@@ -24,6 +32,10 @@ void player_destroy(MediaPlayerContext *vpc);
 void player_play(MediaPlayerContext *vpc);
 
 void player_stop(MediaPlayerContext *vpc);
+
+int player_failed(MediaPlayerContext *vpc);
+
+int player_is_loading(MediaPlayerContext *vpc);
 
 int player_is_buffering(MediaPlayerContext *vpc);
 
@@ -40,8 +52,6 @@ float player_get_length(MediaPlayerContext *vpc);
 float player_get_playback_position(MediaPlayerContext *vpc);
 
 void player_seek(MediaPlayerContext *vpc, float time);
-
-void player_process(MediaPlayerContext *vpc);
 
 double player_grab_video_frame(MediaPlayerContext *vpc, void **release_ptr, uint8_t **data);
 
