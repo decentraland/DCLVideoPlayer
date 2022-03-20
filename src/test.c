@@ -30,22 +30,24 @@ void test_decoder() {
   decoder_destroy(dectx);
 }
 
-void test_format(const char *test_name, const char *url) {
+void test_format(const char *test_name, const char *url, uint8_t expected_state) {
   logging(test_name);
   double timeout = get_time_in_seconds() + 30.0;
   MediaPlayerContext *vpc = player_create(url);
 
-  if (vpc == NULL) {
-    logging("Error: Url no valid");
+  while(player_get_state(vpc) == StateLoading) {}
+
+  assert(player_get_state(vpc) == expected_state);
+
+  if (player_get_state(vpc) != StateReady) {
+    return;
   }
-  assert(vpc != NULL);
 
   player_play(vpc);
 
   int video_frames = 0;
   int audio_frames = 0;
   while (audio_frames < 10 || video_frames < 10) {
-    player_process(vpc);
 
     void *release_ptr = NULL;
     uint8_t *videoData = NULL;
@@ -77,6 +79,7 @@ void test_format(const char *test_name, const char *url) {
   }
 
   player_destroy(vpc);
+  player_join_threads();
 }
 
 void test_loop() {
@@ -92,13 +95,15 @@ int main() {
 
   test_decoder();
 
-  test_format("HTTP+MP4", "http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4");
+  test_format("HTTP+MP4", "http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4", StateReady);
 
-  test_format("HTTPS+MP4", "https://storage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4");
+  test_format("HTTPS+MP4", "https://storage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4", StateReady);
 
-  test_format("HTTP+WEBM", "http://techslides.com/demos/sample-videos/small.webm");
+  test_format("HTTP+WEBM", "http://techslides.com/demos/sample-videos/small.webm", StateReady);
 
-  test_format("HTTP+OGV", "http://techslides.com/demos/sample-videos/small.ogv");
+  test_format("HTTP+OGV", "http://techslides.com/demos/sample-videos/small.ogv", StateReady);
+
+  test_format("Invalid URL", "", StateError);
 
   return 0;
 }

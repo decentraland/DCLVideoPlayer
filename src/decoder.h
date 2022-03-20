@@ -8,6 +8,7 @@
 #include <string.h>
 #include <inttypes.h>
 #include <libswresample/swresample.h>
+#include <pthread.h>
 
 typedef struct DecoderContext {
     // AVFormatContext holds the header information from the format (Container)
@@ -31,12 +32,13 @@ typedef struct DecoderContext {
     AVPacket *av_packet;
 
     SwrContext *swr_ctx;
-    int loop;
+    uint8_t loop;
     float video_duration_in_sec;
     float audio_duration_in_sec;
 
     int audio_frequency;
     int audio_channels;
+    pthread_mutex_t lock;
 } DecoderContext;
 
 typedef struct ProcessOutput {

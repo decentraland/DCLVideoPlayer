@@ -89,6 +89,12 @@ DecoderContext *decoder_create(const char *url) {
   DecoderContext *dectx = (DecoderContext *) calloc(1, sizeof(DecoderContext));
   logging("initializing all the containers, codecs and protocols.");
 
+  if (pthread_mutex_init(&dectx->lock, NULL) != 0)
+  {
+    logging("ERROR decoder mutex init failed\n");
+    return NULL;
+  }
+
   // AVFormatContext holds the header information from the format (Container)
   // Allocating memory for this component
   // http://ffmpeg.org/doxygen/trunk/structAVFormatContext.html
@@ -277,6 +283,7 @@ AVFrame *process_audio_frame(DecoderContext *dectx) {
 }
 
 int decoder_process_frame(DecoderContext *dectx, ProcessOutput *processOutput) {
+  pthread_mutex_lock(&dectx->lock);
   processOutput->videoFrame = NULL;
   processOutput->audioFrame = NULL;
   int res = -1;
@@ -288,23 +295,31 @@ int decoder_process_frame(DecoderContext *dectx, ProcessOutput *processOutput) {
                                    (double) dectx->av_frame->best_effort_timestamp);
       //logging("[VIDEO] AVPacket frame-number=%d timeInSec=%lf", dectx->video_avcc->frame_number, timeInSec);
       res = decode_packet(dectx->video_avcc, dectx->av_packet, dectx->av_frame);
-      if (res < 0)
+      if (res < 0) {
+        pthread_mutex_unlock(&dectx->lock);
         return -1;
+      }
       processOutput->videoFrame = process_video_frame(dectx->av_frame, dectx->video_avcc->frame_number);
       res = 0;
     } else if (dectx->av_packet->stream_index == dectx->audio_index) {
       //logging("[AUDIO] AVPacket->pts %" PRId64, dectx->av_packet->pts);
       res = decode_packet(dectx->audio_avcc, dectx->av_packet, dectx->av_frame);
-      if (res < 0)
+      if (res < 0) {
+        pthread_mutex_unlock(&dectx->lock);
         return -1;
+      }
       processOutput->audioFrame = process_audio_frame(dectx);
       res = 0;
     }
     // https://ffmpeg.org/doxygen/trunk/group__lavc__packet.html#ga63d5a489b419bd5d45cfd09091cbcbc2
     av_packet_unref(dectx->av_packet);
+    pthread_mutex_unlock(&dectx->lock);
   } else {
     if (dectx->loop == 1) {
+      pthread_mutex_unlock(&dectx->lock); // Avoid deadlock
       decoder_seek(dectx, 0.0f);
+    } else {
+      pthread_mutex_unlock(&dectx->lock);
     }
   }
 
@@ -312,8 +327,10 @@ int decoder_process_frame(DecoderContext *dectx, ProcessOutput *processOutput) {
 }
 
 void decoder_seek(DecoderContext *dectx, float timeInSeconds) {
+  pthread_mutex_lock(&dectx->lock);
   uint64_t timestamp = (uint64_t) timeInSeconds * AV_TIME_BASE;
   av_seek_frame(dectx->av_format_ctx, -1, timestamp, AVSEEK_FLAG_BACKWARD);
+  pthread_mutex_unlock(&dectx->lock);
 }
 
 void decoder_destroy(DecoderContext *dectx) {
@@ -324,6 +341,7 @@ void decoder_destroy(DecoderContext *dectx) {
   av_frame_free(&dectx->av_frame);
   avcodec_free_context(&dectx->video_avcc);
   avcodec_free_context(&dectx->audio_avcc);
+  pthread_mutex_destroy(&dectx->lock);
 
   if (dectx->swr_ctx != NULL) {
     swr_close(dectx->swr_ctx);
