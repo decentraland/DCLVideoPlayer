@@ -60,6 +60,9 @@ else()
         file(GLOB AVDLLS
                 "${CMAKE_PREFIX_PATH}/bin/*.dll"
         )
+        file(COPY "${CMAKE_PREFIX_PATH}/bin/*.dll"
+                  "."
+        )
         message(AVDLLS ${AVDLLS})
         install(FILES ${AVDLLS} DESTINATION ${installPath})
     else()
