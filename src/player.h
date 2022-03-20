@@ -6,6 +6,13 @@
 
 QueueContext* thread_queue = NULL;
 
+enum Status
+{
+    StatusLoading = 0,
+    StatusReady = 1,
+    StatusError = 2,
+};
+
 typedef struct MediaPlayerContext {
     DecoderContext *dectx;
     SafeQueueContext *video_queue;
@@ -17,9 +24,8 @@ typedef struct MediaPlayerContext {
     double video_progress_time;
     uint8_t playing;
     uint8_t loop;
+    uint8_t status;
     uint8_t buffering;
-    uint8_t loading;
-    uint8_t failed;
     uint8_t thread_running;
 } MediaPlayerContext;
 
@@ -33,9 +39,7 @@ void player_play(MediaPlayerContext *vpc);
 
 void player_stop(MediaPlayerContext *vpc);
 
-int player_failed(MediaPlayerContext *vpc);
-
-int player_is_loading(MediaPlayerContext *vpc);
+int player_get_status(MediaPlayerContext *vpc);
 
 int player_is_buffering(MediaPlayerContext *vpc);
 

@@ -31,7 +31,7 @@ typedef struct DecoderContext {
     AVPacket *av_packet;
 
     SwrContext *swr_ctx;
-    int loop;
+    uint8_t loop;
     float video_duration_in_sec;
     float audio_duration_in_sec;
 

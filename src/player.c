@@ -38,12 +38,12 @@ void* _run_decoder(void* args) {
   vpc->dectx = decoder_create(url);
 
   if (vpc->dectx == NULL) {
-    vpc->failed = 1;
+    vpc->status = StatusError;
     pthread_exit(NULL);
     return NULL;
   }
 
-  vpc->loading = 0;
+  vpc->status = StatusReady;
   while(vpc->thread_running == 1) {
     int res = -1;
     if (safe_queue_is_full(vpc->video_queue) == 0 && safe_queue_is_full(vpc->audio_queue) == 0) {
@@ -57,8 +57,6 @@ void* _run_decoder(void* args) {
         if (processOutput.audioFrame) {
           safe_queue_push(vpc->audio_queue, processOutput.audioFrame);
         }
-
-        //logging("videoCount=%d audioCount=%d", vpc->video_queue->count, vpc->audio_queue->count);
       }
     }
   }
@@ -91,8 +89,7 @@ MediaPlayerContext *player_create(const char *url) {
   logging("player_create %s", url);
   MediaPlayerContext *vpc = (MediaPlayerContext *) calloc(1, sizeof(MediaPlayerContext));
 
-  vpc->failed = 0;
-  vpc->loading = 1;
+  vpc->status = StatusLoading;
   vpc->dectx = NULL;
   vpc->video_queue = safe_queue_create(64);
   vpc->audio_queue = safe_queue_create(128);
@@ -100,7 +97,6 @@ MediaPlayerContext *player_create(const char *url) {
   vpc->start_time = get_time_in_seconds();
   vpc->playing = 0;
   vpc->loop = 0;
-  vpc->buffering = 1;
   vpc->video_progress_time = 0.0;
   vpc->last_video_frame_time = 0.0f;
   vpc->thread_running = 1;
@@ -112,7 +108,7 @@ MediaPlayerContext *player_create(const char *url) {
 
   int err = pthread_create(&(thread_id), NULL, &_run_decoder, (void*)thread_args);
   if (err != 0) {
-    vpc->failed = 1;
+    vpc->status = StatusError;
     logging("[ERROR] can't create thread :[%s]", strerror(err));
   } else {
     if (thread_queue == NULL)
@@ -141,12 +137,8 @@ void player_stop(MediaPlayerContext *vpc) {
   logging("player_stop");
 }
 
-int player_failed(MediaPlayerContext *vpc) {
-  return vpc->failed;
-}
-
-int player_is_loading(MediaPlayerContext *vpc) {
-  return vpc->loading;
+int player_get_status(MediaPlayerContext *vpc) {
+  return vpc->status;
 }
 
 int player_is_buffering(MediaPlayerContext *vpc) {
