@@ -61,7 +61,7 @@ else()
                 "${CMAKE_PREFIX_PATH}/bin/*.dll"
         )
         file(COPY "${CMAKE_PREFIX_PATH}/bin/*.dll"
-                  "."
+                DESTINATION "."
         )
         message(AVDLLS ${AVDLLS})
         install(FILES ${AVDLLS} DESTINATION ${installPath})
