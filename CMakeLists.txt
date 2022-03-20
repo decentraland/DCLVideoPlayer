@@ -60,6 +60,9 @@ else()
         file(GLOB AVDLLS
                 "${CMAKE_PREFIX_PATH}/bin/*.dll"
         )
+        file(COPY ${AVDLLS}
+                DESTINATION "."
+        )
         message(AVDLLS ${AVDLLS})
         install(FILES ${AVDLLS} DESTINATION ${installPath})
     else()
@@ -72,7 +75,13 @@ else()
     endif()
 endif()
 
-add_executable(${PROJECT_NAME}Test src/main.c)
-target_link_libraries(${PROJECT_NAME}Test PRIVATE ${PROJECT_NAME})
+add_test(NAME
+            ${PROJECT_NAME}Test
+        COMMAND
+            --build-and-test "${CMAKE_CURRENT_BINARY_DIR}/test"
+            --build-generator "${CMAKE_GENERATOR}"
+            --test-command "${CMAKE_CTEST_COMMAND}")
+add_executable(test src/test.c)
+target_link_libraries(test PRIVATE ${PROJECT_NAME})
 
 install(TARGETS ${PROJECT_NAME} DESTINATION ${installPath})
