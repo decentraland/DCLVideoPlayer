@@ -8,12 +8,11 @@ set(installPath ${CMAKE_SYSTEM_NAME}-${CMAKE_HOST_SYSTEM_PROCESSOR})
 
 if(STATIC_LIB)
     set(CMAKE_FIND_LIBRARY_SUFFIXES ".a")
+    set(CMAKE_EXE_LINKER_FLAGS "-static")
 endif()
 message(CMAKE_FIND_LIBRARY_SUFFIXES ${CMAKE_FIND_LIBRARY_SUFFIXES})
 
-if(APPLE)
-    set(CMAKE_EXE_LINKER_FLAGS "-static-libstdc++")
-else()
+if(NOT APPLE)
     set(CMAKE_EXE_LINKER_FLAGS "-static-libgcc -static-libstdc++ -lpthread -lm -lz")
 endif()
 

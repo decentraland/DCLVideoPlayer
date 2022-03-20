@@ -84,6 +84,7 @@ void player_join_threads()
       break;
     }
   }
+  queue_destroy(&thread_queue);
 }
 
 MediaPlayerContext *player_create(const char *url) {
