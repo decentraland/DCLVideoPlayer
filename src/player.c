@@ -15,7 +15,6 @@ void *_run_decoder(void *arg) {
 
   if (vpc->dectx == NULL) {
     vpc->state = StateError;
-    decoder_destroy(vpc->dectx);
     safe_queue_destroy(&vpc->video_queue);
     safe_queue_destroy(&vpc->audio_queue);
     free(vpc->url);

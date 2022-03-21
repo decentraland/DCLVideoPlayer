@@ -113,7 +113,7 @@ DecoderContext *decoder_create(const char *url) {
 
   if (pthread_mutex_init(&dectx->lock, NULL) != 0) {
     logging("ERROR decoder mutex init failed\n");
-    return NULL;
+    goto free;
   }
 
   // AVFormatContext holds the header information from the format (Container)
@@ -122,7 +122,7 @@ DecoderContext *decoder_create(const char *url) {
   dectx->av_format_ctx = avformat_alloc_context();
   if (!dectx->av_format_ctx) {
     logging("ERROR could not allocate memory for Format Context");
-    return NULL;
+    goto free;
   }
 
   logging("opening the input file (%s) and loading format (container) header", url);
@@ -135,7 +135,7 @@ DecoderContext *decoder_create(const char *url) {
   // http://ffmpeg.org/doxygen/trunk/group__lavf__decoding.html#ga31d601155e9035d5b0e7efedc894ee49
   if (avformat_open_input(&dectx->av_format_ctx, url, NULL, NULL) != 0) {
     logging("ERROR could not open the file");
-    return NULL;
+    goto free;
   }
 
   // now we have access to some information about our file
@@ -155,24 +155,24 @@ DecoderContext *decoder_create(const char *url) {
   // https://ffmpeg.org/doxygen/trunk/group__lavf__decoding.html#gad42172e27cddafb81096939783b157bb
   if (avformat_find_stream_info(dectx->av_format_ctx, NULL) < 0) {
     logging("ERROR could not get the stream info");
-    return NULL;
+    goto free;
   }
 
   if (prepare_decoder(dectx)) {
     logging("ERROR could not prepare the decoder");
-    return NULL;
+    goto free;
   }
   // https://ffmpeg.org/doxygen/trunk/structAVFrame.html
   AVFrame *pFrame = av_frame_alloc();
   if (!pFrame) {
     logging("failed to allocated memory for AVFrame");
-    return NULL;
+    goto free;
   }
   // https://ffmpeg.org/doxygen/trunk/structAVPacket.html
   AVPacket *pPacket = av_packet_alloc();
   if (!pPacket) {
     logging("failed to allocated memory for AVPacket");
-    return NULL;
+    goto free;
   }
 
   dectx->av_frame = pFrame;
@@ -180,6 +180,9 @@ DecoderContext *decoder_create(const char *url) {
 
   logging("video_duration=%lf audio_duration=%lf fps=%lf", dectx->video_duration_in_sec, dectx->audio_duration_in_sec, dectx->video_frame_rate);
   return dectx;
+free:
+  decoder_destroy(dectx);
+  return NULL;
 }
 
 #ifdef SAVE_FRAME_TO_FILE
@@ -350,17 +353,22 @@ void decoder_seek(DecoderContext *dectx, float timeInSeconds) {
 void decoder_destroy(DecoderContext *dectx) {
   logging("releasing all the resources");
 
-  avformat_close_input(&dectx->av_format_ctx);
-  av_packet_free(&dectx->av_packet);
-  av_frame_free(&dectx->av_frame);
-  avcodec_free_context(&dectx->video_avcc);
-  avcodec_free_context(&dectx->audio_avcc);
+  if (dectx->av_format_ctx)
+    avformat_close_input(&dectx->av_format_ctx);
+  if (dectx->av_packet)
+    av_packet_free(&dectx->av_packet);
+  if (dectx->av_frame)
+    av_frame_free(&dectx->av_frame);
+  if (dectx->video_avcc)
+    avcodec_free_context(&dectx->video_avcc);
+  if (dectx->audio_avcc)
+    avcodec_free_context(&dectx->audio_avcc);
+
   pthread_mutex_destroy(&dectx->lock);
 
   if (dectx->swr_ctx != NULL) {
     swr_close(dectx->swr_ctx);
     swr_free(&dectx->swr_ctx);
-    dectx->swr_ctx = NULL;
   }
 
   free(dectx);
