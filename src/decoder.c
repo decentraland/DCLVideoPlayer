@@ -70,12 +70,32 @@ int prepare_decoder(DecoderContext *dectx) {
       dectx->video_index = i;
 
       if (fill_stream_info(dectx->video_avs, &dectx->video_avc, &dectx->video_avcc)) { return -1; }
+
+      dectx->video_frame_rate = av_q2d(dectx->video_avs->r_frame_rate);
+
+      if (dectx->video_avs->duration != AV_NOPTS_VALUE) {
+        dectx->video_duration_in_sec =
+            dectx->video_avs->duration <= 0 ? (double) (dectx->av_format_ctx->duration) / AV_TIME_BASE :
+            dectx->video_avs->duration * av_q2d(dectx->video_avs->time_base);
+      } else {
+        dectx->video_duration_in_sec = 0.0;
+      }
+
     } else if (dectx->av_format_ctx->streams[i]->codecpar->codec_type == AVMEDIA_TYPE_AUDIO) {
       dectx->audio_avs = dectx->av_format_ctx->streams[i];
       dectx->audio_index = i;
 
       if (fill_stream_info(dectx->audio_avs, &dectx->audio_avc, &dectx->audio_avcc)) { return -1; }
       prepare_swr(dectx);
+
+      if (dectx->audio_avs->duration != AV_NOPTS_VALUE) {
+        dectx->audio_duration_in_sec =
+            dectx->audio_avs->duration <= 0 ? (double) (dectx->av_format_ctx->duration) / AV_TIME_BASE :
+            dectx->audio_avs->duration * av_q2d(dectx->audio_avs->time_base);
+      } else {
+        dectx->audio_duration_in_sec = 0.0;
+      }
+
     } else {
       logging("skipping streams other than audio and video");
     }
@@ -88,6 +108,8 @@ int prepare_decoder(DecoderContext *dectx) {
 DecoderContext *decoder_create(const char *url) {
   DecoderContext *dectx = (DecoderContext *) calloc(1, sizeof(DecoderContext));
   logging("initializing all the containers, codecs and protocols.");
+
+  dectx->loop = 0;
 
   if (pthread_mutex_init(&dectx->lock, NULL) != 0) {
     logging("ERROR decoder mutex init failed\n");
@@ -155,22 +177,8 @@ DecoderContext *decoder_create(const char *url) {
 
   dectx->av_frame = pFrame;
   dectx->av_packet = pPacket;
-  dectx->loop = 0;
-  if (dectx->video_avs)
-    dectx->video_frame_rate = av_q2d(dectx->video_avs->r_frame_rate);
-  else
-    dectx->video_frame_rate = 0.0;
 
-
-  dectx->video_duration_in_sec =
-          dectx->video_avs->duration <= 0 ? (double) (dectx->av_format_ctx->duration) / AV_TIME_BASE :
-          dectx->video_avs->duration * av_q2d(dectx->video_avs->time_base);
-
-  dectx->audio_duration_in_sec =
-          dectx->audio_avs->duration <= 0 ? (double) (dectx->av_format_ctx->duration) / AV_TIME_BASE :
-          dectx->audio_avs->duration * av_q2d(dectx->audio_avs->time_base);
-
-  logging("video_duration=%f audio_duration=%f fps=", dectx->video_duration_in_sec, dectx->audio_duration_in_sec, dectx->video_frame_rate);
+  logging("video_duration=%lf audio_duration=%lf fps=%lf", dectx->video_duration_in_sec, dectx->audio_duration_in_sec, dectx->video_frame_rate);
   return dectx;
 }
 
@@ -234,10 +242,10 @@ AVFrame *convert_to_rgb24(AVFrame *srcFrame, int frameNumber) {
   return dstFrame;
 }
 
-int decode_packet(AVCodecContext *avcc, AVPacket *pPacket, AVFrame *pFrame) {
+int decode_packet(AVCodecContext *avcc, AVPacket *av_packet, AVFrame *av_frame) {
   // Supply raw packet data as input to a decoder
   // https://ffmpeg.org/doxygen/trunk/group__lavc__decoding.html#ga58bc4bf1e0ac59e27362597e467efff3
-  int response = avcodec_send_packet(avcc, pPacket);
+  int response = avcodec_send_packet(avcc, av_packet);
 
   if (response < 0) {
     logging("Error while sending a packet to the decoder: %s", av_err2str(response));
@@ -247,7 +255,7 @@ int decode_packet(AVCodecContext *avcc, AVPacket *pPacket, AVFrame *pFrame) {
   while (response >= 0) {
     // Return decoded output data (into a frame) from a decoder
     // https://ffmpeg.org/doxygen/trunk/group__lavc__decoding.html#ga11e6542c4e66d3028668788a1a74217c
-    response = avcodec_receive_frame(avcc, pFrame);
+    response = avcodec_receive_frame(avcc, av_frame);
     if (response == AVERROR(EAGAIN) || response == AVERROR_EOF) {
       break;
     } else if (response < 0) {
@@ -256,7 +264,7 @@ int decode_packet(AVCodecContext *avcc, AVPacket *pPacket, AVFrame *pFrame) {
     }
 
     if (response >= 0) {
-      /*logging(
+      logging(
           "Frame %d (type=%c, size=%d bytes, format=%d) pts %d key_frame %d [DTS %d]",
           avcc->frame_number,
           av_get_picture_type_char(av_frame->pict_type),
@@ -265,7 +273,7 @@ int decode_packet(AVCodecContext *avcc, AVPacket *pPacket, AVFrame *pFrame) {
           av_frame->pts,
           av_frame->key_frame,
           av_frame->coded_picture_number
-      );*/
+      );
       return 0;
     }
   }
@@ -320,7 +328,8 @@ int decoder_process_frame(DecoderContext *dectx, ProcessOutput *processOutput) {
     av_packet_unref(dectx->av_packet);
     pthread_mutex_unlock(&dectx->lock);
   } else {
-    if (dectx->loop == 1) {
+
+    if (dectx->loop == 1 && 0 == 1) {
       pthread_mutex_unlock(&dectx->lock); // Avoid deadlock
       decoder_seek(dectx, 0.0f);
     } else {
