@@ -37,7 +37,7 @@ void test_format(const char *test_name, const char *url, uint8_t expected_state)
 
   while (player_get_state(vpc) == StateLoading) {}
 
-  logging("player_get_state=%d", player_get_state(vpc));
+  logging("player_get_state=%d vs %d", player_get_state(vpc), expected_state);
   assert(player_get_state(vpc) == expected_state);
 
   if (player_get_state(vpc) != StateReady) {
