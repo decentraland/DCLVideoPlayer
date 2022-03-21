@@ -11,11 +11,11 @@ if(STATIC_LIB)
 endif()
 message(CMAKE_FIND_LIBRARY_SUFFIXES ${CMAKE_FIND_LIBRARY_SUFFIXES})
 
+add_library(${PROJECT_NAME} SHARED src/decoder.c src/player.c src/safeframequeue.c src/threadqueue.c)
+
 if(NOT APPLE)
     target_link_libraries(${PROJECT_NAME} PUBLIC -static-libgcc -static-libstdc++ -lpthread -lm -lz)
 endif()
-
-add_library(${PROJECT_NAME} SHARED src/decoder.c src/player.c src/safeframequeue.c src/threadqueue.c)
 
 if (STATIC_LIB)
     find_package(PkgConfig REQUIRED)
