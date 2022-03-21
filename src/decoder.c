@@ -156,15 +156,21 @@ DecoderContext *decoder_create(const char *url) {
   dectx->av_frame = pFrame;
   dectx->av_packet = pPacket;
   dectx->loop = 0;
+  if (dectx->video_avs)
+    dectx->video_frame_rate = av_q2d(dectx->video_avs->r_frame_rate);
+  else
+    dectx->video_frame_rate = 0.0;
+
 
   dectx->video_duration_in_sec =
           dectx->video_avs->duration <= 0 ? (double) (dectx->av_format_ctx->duration) / AV_TIME_BASE :
           dectx->video_avs->duration * av_q2d(dectx->video_avs->time_base);
-  logging("video duration: %f", dectx->video_duration_in_sec);
 
   dectx->audio_duration_in_sec =
           dectx->audio_avs->duration <= 0 ? (double) (dectx->av_format_ctx->duration) / AV_TIME_BASE :
           dectx->audio_avs->duration * av_q2d(dectx->audio_avs->time_base);
+
+  logging("video_duration=%f audio_duration=%f fps=", dectx->video_duration_in_sec, dectx->audio_duration_in_sec, dectx->video_frame_rate);
   return dectx;
 }
 
