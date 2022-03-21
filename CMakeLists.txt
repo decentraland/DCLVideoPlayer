@@ -12,7 +12,7 @@ endif()
 message(CMAKE_FIND_LIBRARY_SUFFIXES ${CMAKE_FIND_LIBRARY_SUFFIXES})
 
 if(NOT APPLE)
-    set(CMAKE_EXE_LINKER_FLAGS "-static-libgcc -static-libstdc++ -lpthread -lm -lz")
+    set(CMAKE_EXE_LINKER_FLAGS "-static-libgcc -static-libstdc++ -lpthread")
     message(CMAKE_EXE_LINKER_FLAGS ${CMAKE_EXE_LINKER_FLAGS})
 endif()
 
