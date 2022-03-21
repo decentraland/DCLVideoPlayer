@@ -95,6 +95,10 @@ int main() {
 
   test_decoder();
 
+  test_format("HTTPS+HLS 1", "https://player.vimeo.com/external/552481870.m3u8?s=c312c8533f97e808fccc92b0510b085c8122a875", StateReady);
+
+  test_format("HTTPS+HLS 2", "https://player.vimeo.com/external/575854261.m3u8?s=d09797037b7f4f1013d337c04836d1e998ad9c80", StateReady);
+
   test_format("HTTP+MP4", "http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",
               StateReady);
 
