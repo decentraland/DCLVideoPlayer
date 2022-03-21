@@ -97,8 +97,7 @@ void safe_queue_push(SafeQueueContext *queue, AVFrame *frame) {
 void safe_queue_destroy(SafeQueueContext **queueRef) {
   SafeQueueContext *queue = *queueRef;
   safe_queue_clean(queue);
-
+  pthread_mutex_destroy(&queue->lock);
   free(queue);
   *queueRef = NULL;
-  pthread_mutex_destroy(&queue->lock);
 }

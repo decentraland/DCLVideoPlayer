@@ -37,7 +37,7 @@ void *_run_decoder(void *arg) {
       if (res == 0) {
         if (processOutput.videoFrame) {
           safe_queue_push(vpc->video_queue, processOutput.videoFrame);
-          logging("video_count=%d buffering=%d", vpc->video_queue->count, vpc->buffering);
+          //logging("video_count=%d buffering=%d", vpc->video_queue->count, vpc->buffering);
           has_frame = 1;
         }
 
@@ -203,6 +203,7 @@ double _internal_grab_video_frame(MediaPlayerContext *vpc, void **release_ptr, S
     if (vpc->first_frame == 1) {
       vpc->start_time = get_time_in_seconds_with_rate(vpc) - time_in_sec;
       vpc->first_frame = 0;
+      logging("time_in_sec %lf", time_in_sec);
     }
     current_time_in_sec = get_time_in_seconds_with_rate(vpc) - vpc->start_time;
 

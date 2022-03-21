@@ -264,7 +264,7 @@ int decode_packet(AVCodecContext *avcc, AVPacket *av_packet, AVFrame *av_frame) 
     }
 
     if (response >= 0) {
-      logging(
+      /*logging(
           "Frame %d (type=%c, size=%d bytes, format=%d) pts %d key_frame %d [DTS %d]",
           avcc->frame_number,
           av_get_picture_type_char(av_frame->pict_type),
@@ -273,7 +273,7 @@ int decode_packet(AVCodecContext *avcc, AVPacket *av_packet, AVFrame *av_frame) 
           av_frame->pts,
           av_frame->key_frame,
           av_frame->coded_picture_number
-      );
+      );*/
       return 0;
     }
   }
@@ -329,7 +329,7 @@ int decoder_process_frame(DecoderContext *dectx, ProcessOutput *processOutput) {
     pthread_mutex_unlock(&dectx->lock);
   } else {
 
-    if (dectx->loop == 1 && 0 == 1) {
+    if (dectx->loop == 1) {
       pthread_mutex_unlock(&dectx->lock); // Avoid deadlock
       decoder_seek(dectx, 0.0f);
     } else {

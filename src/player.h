@@ -28,6 +28,7 @@ typedef struct MediaPlayerContext {
     uint8_t state;
     uint8_t buffering;
     uint8_t thread_running;
+    uint8_t first_frame;
 
     double playback_rate;
     double playback_reference;
