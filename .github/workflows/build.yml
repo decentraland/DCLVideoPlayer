@@ -18,30 +18,30 @@ jobs:
       fail-fast: false
       matrix:
         config:
-#          - {
-#            name: "Windows Latest MinGW",
-#            os: windows-latest,
-#            artifact: "windows_mingw.7z",
-#            build_type: "Release",
-#            cc: "gcc",
-#            cxx: "g++",
-#            archiver: "7z a",
-#            generators: "Ninja",
-#            ffmpeg_path: "C:/Program Files/FFmpeg/",
-#            static: "OFF"
-#          }
-#          - {
-#            name: "macOS Latest Clang",
-#            os: macos-latest,
-#            artifact: "macos_clang.7z",
-#            build_type: "Release",
-#            cc: "clang",
-#            cxx: "clang++",
-#            archiver: "7za a",
-#            generators: "Ninja",
-#            ffmpeg_path: "/Users/runner/work/ffmpeg-static/ffmpeg-static/target/",
-#            static: "ON"
-#          }
+          - {
+            name: "Windows Latest MinGW",
+            os: windows-latest,
+            artifact: "windows_mingw.7z",
+            build_type: "Release",
+            cc: "gcc",
+            cxx: "g++",
+            archiver: "7z a",
+            generators: "Ninja",
+            ffmpeg_path: "C:/Program Files/FFmpeg/",
+            static: "OFF"
+          }
+          - {
+            name: "macOS Latest Clang",
+            os: macos-latest,
+            artifact: "macos_clang.7z",
+            build_type: "Release",
+            cc: "clang",
+            cxx: "clang++",
+            archiver: "7za a",
+            generators: "Ninja",
+            ffmpeg_path: "/Users/runner/work/ffmpeg-static/ffmpeg-static/target/",
+            static: "ON"
+          }
           - {
             name: "Ubuntu_Latest_GCC",
             os: ubuntu-latest,
