@@ -1,5 +1,6 @@
 #include "safeframequeue.h"
 #include "logger.h"
+
 SafeQueueContext *safe_queue_create(int maxCount) {
   SafeQueueContext *queue = (SafeQueueContext *) calloc(1, sizeof(SafeQueueContext));
   queue->first = NULL;
@@ -7,9 +8,8 @@ SafeQueueContext *safe_queue_create(int maxCount) {
   queue->count = 0;
   queue->maxCount = maxCount;
 
-  if (pthread_mutex_init(&queue->lock, NULL) != 0)
-  {
-    logging("[ERROR] mutex init failed\n");
+  if (pthread_mutex_init(&queue->lock, NULL) != 0) {
+    logging("ERROR mutex init failed\n");
     return NULL;
   }
 
@@ -28,7 +28,7 @@ int safe_queue_is_full(SafeQueueContext *queue) {
 
 int safe_queue_is_empty(SafeQueueContext *queue) {
   pthread_mutex_lock(&queue->lock);
-  int count = queue->count >= queue->maxCount;
+  int count = queue->count;
   pthread_mutex_unlock(&queue->lock);
   if (count == 0)
     return 1;
@@ -48,7 +48,7 @@ void safe_queue_clean(SafeQueueContext *queue) {
 }
 
 AVFrame *safe_queue_peek_front(SafeQueueContext *queue) {
-  AVFrame* frame = NULL;
+  AVFrame *frame = NULL;
   pthread_mutex_lock(&queue->lock);
   if (queue->first) {
     frame = queue->first->frame;

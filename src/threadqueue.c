@@ -1,4 +1,4 @@
-#include "queue.h"
+#include "threadqueue.h"
 
 QueueContext *queue_create() {
   QueueContext *queue = (QueueContext *) calloc(1, sizeof(QueueContext));
@@ -16,26 +16,25 @@ int queue_is_empty(QueueContext *queue) {
 }
 
 void queue_clean(QueueContext *queue) {
-  void *item = NULL;
+  pthread_t item = NULL_THREAD;
   do {
     item = queue_pop_front(queue);
-    if (item == NULL)
+    if (item == NULL_THREAD)
       break;
   } while (1);
 }
 
-void *queue_peek_front(QueueContext *queue) {
+pthread_t queue_peek_front(QueueContext *queue) {
   if (queue->first) {
-    void *item = queue->first->item;
-    return item;
+    return queue->first->thread_id;
   }
-  return NULL;
+  return NULL_THREAD;
 }
 
-void *queue_pop_front(QueueContext *queue) {
+pthread_t queue_pop_front(QueueContext *queue) {
   if (queue->first) {
     Item *first_item = queue->first;
-    void *item = first_item->item;
+    pthread_t item = first_item->thread_id;
     queue->first = first_item->next_item;
     if (first_item->next_item == NULL) {
       queue->last = first_item->next_item;
@@ -44,13 +43,13 @@ void *queue_pop_front(QueueContext *queue) {
     free(first_item);
     return item;
   }
-  return NULL;
+  return NULL_THREAD;
 }
 
-void queue_push(QueueContext *queue, void *item) {
+void queue_push(QueueContext *queue, pthread_t item) {
   Item *first_item = (Item *) calloc(1, sizeof(Item));
   first_item->next_item = NULL;
-  first_item->item = item;
+  first_item->thread_id = item;
 
   if (queue->first == NULL) {
     queue->first = first_item;

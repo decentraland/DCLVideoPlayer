@@ -15,7 +15,7 @@ if(NOT APPLE)
     set(CMAKE_EXE_LINKER_FLAGS "-static-libgcc -static-libstdc++ -lpthread -lm -lz")
 endif()
 
-add_library(${PROJECT_NAME} SHARED src/decoder.c src/player.c src/safeframequeue.c src/queue.c)
+add_library(${PROJECT_NAME} SHARED src/decoder.c src/player.c src/safeframequeue.c src/threadqueue.c)
 
 if (STATIC_LIB)
     find_package(PkgConfig REQUIRED)

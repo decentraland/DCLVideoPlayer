@@ -89,8 +89,7 @@ DecoderContext *decoder_create(const char *url) {
   DecoderContext *dectx = (DecoderContext *) calloc(1, sizeof(DecoderContext));
   logging("initializing all the containers, codecs and protocols.");
 
-  if (pthread_mutex_init(&dectx->lock, NULL) != 0)
-  {
+  if (pthread_mutex_init(&dectx->lock, NULL) != 0) {
     logging("ERROR decoder mutex init failed\n");
     return NULL;
   }

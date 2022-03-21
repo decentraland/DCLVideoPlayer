@@ -2,12 +2,11 @@
 
 #include "decoder.h"
 #include "safeframequeue.h"
-#include "queue.h"
+#include "threadqueue.h"
 
-QueueContext* thread_queue = NULL;
+QueueContext *thread_queue = NULL;
 
-enum State
-{
+enum State {
     StateLoading = 0,
     StateReady = 1,
     StateError = 2,
@@ -15,7 +14,7 @@ enum State
 
 typedef struct MediaPlayerContext {
     DecoderContext *dectx;
-    char* url;
+    char *url;
 
     SafeQueueContext *video_queue;
     SafeQueueContext *audio_queue;
@@ -29,6 +28,10 @@ typedef struct MediaPlayerContext {
     uint8_t state;
     uint8_t buffering;
     uint8_t thread_running;
+
+    double playback_rate;
+    double playback_reference;
+    double playback_reference_with_rate;
 } MediaPlayerContext;
 
 void player_join_threads();
@@ -56,6 +59,8 @@ int player_has_loop(MediaPlayerContext *vpc);
 float player_get_length(MediaPlayerContext *vpc);
 
 float player_get_playback_position(MediaPlayerContext *vpc);
+
+void player_set_playback_rate(MediaPlayerContext *vpc, double playback_rate);
 
 void player_seek(MediaPlayerContext *vpc, float time);
 

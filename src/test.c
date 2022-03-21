@@ -1,7 +1,7 @@
 //#include "decoder.h"
 #include "player.h"
 #include "logger.h"
-#include "testutil.h"
+#include "utils.h"
 #include <assert.h>
 
 void test_decoder() {
@@ -35,7 +35,7 @@ void test_format(const char *test_name, const char *url, uint8_t expected_state)
   double timeout = get_time_in_seconds() + 30.0;
   MediaPlayerContext *vpc = player_create(url);
 
-  while(player_get_state(vpc) == StateLoading) {}
+  while (player_get_state(vpc) == StateLoading) {}
 
   assert(player_get_state(vpc) == expected_state);
 
@@ -95,7 +95,8 @@ int main() {
 
   test_decoder();
 
-  test_format("HTTP+MP4", "http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4", StateReady);
+  test_format("HTTP+MP4", "http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",
+              StateReady);
 
   test_format("HTTPS+MP4", "https://storage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4", StateReady);
 
