@@ -33,8 +33,9 @@ typedef struct DecoderContext {
 
     SwrContext *swr_ctx;
     uint8_t loop;
-    float video_duration_in_sec;
-    float audio_duration_in_sec;
+    double video_frame_rate;
+    double video_duration_in_sec;
+    double audio_duration_in_sec;
 
     int audio_frequency;
     int audio_channels;

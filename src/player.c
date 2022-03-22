@@ -15,6 +15,10 @@ void *_run_decoder(void *arg) {
 
   if (vpc->dectx == NULL) {
     vpc->state = StateError;
+    safe_queue_destroy(&vpc->video_queue);
+    safe_queue_destroy(&vpc->audio_queue);
+    free(vpc->url);
+    logging("thread exit with error");
     pthread_exit(NULL);
     return NULL;
   }
@@ -32,6 +36,7 @@ void *_run_decoder(void *arg) {
       if (res == 0) {
         if (processOutput.videoFrame) {
           safe_queue_push(vpc->video_queue, processOutput.videoFrame);
+          //logging("video_count=%d buffering=%d", vpc->video_queue->count, vpc->buffering);
           has_frame = 1;
         }
 
@@ -43,7 +48,7 @@ void *_run_decoder(void *arg) {
     }
 
     if (has_frame == 0)
-      msleep(1);
+      msleep(0.1);
   }
 
   decoder_destroy(vpc->dectx);
@@ -60,7 +65,7 @@ void *_run_decoder(void *arg) {
 void player_join_threads() {
   while (1) {
     pthread_t thread = queue_pop_front(thread_queue);
-    if (thread != NULL) {
+    if (thread != NULL_THREAD) {
       int res = pthread_join(thread, NULL);
       logging("thread exit with code=%d", res);
     } else {
@@ -89,6 +94,8 @@ MediaPlayerContext *player_create(const char *url) {
   vpc->video_progress_time = 0.0;
   vpc->last_video_frame_time = 0.0f;
   vpc->thread_running = 1;
+  vpc->buffering = 1;
+  vpc->first_frame = 1;
 
   vpc->url = malloc(strlen(url) + 1);
   strcpy(vpc->url, url);
@@ -156,9 +163,9 @@ int player_has_loop(MediaPlayerContext *vpc) {
 }
 
 float player_get_length(MediaPlayerContext *vpc) {
-  double ctxDuration = (double) (vpc->dectx->av_format_ctx->duration) / AV_TIME_BASE;
-  double vsDuration = vpc->dectx->video_avs->duration;
-  return vpc->dectx->video_avs->duration <= 0 ? ctxDuration : vsDuration * av_q2d(vpc->dectx->video_avs->time_base);
+  double ctx_duration = (double) (vpc->dectx->av_format_ctx->duration) / AV_TIME_BASE;
+  double vs_duration = vpc->dectx->video_avs->duration;
+  return vpc->dectx->video_avs->duration <= 0 ? ctx_duration : vs_duration * av_q2d(vpc->dectx->video_avs->time_base);
 }
 
 float player_get_playback_position(MediaPlayerContext *vpc) {
@@ -186,12 +193,18 @@ void player_seek(MediaPlayerContext *vpc, float time) {
   vpc->last_video_frame_time = 0.0f;
 }
 
-double _internal_grab_video_frame(MediaPlayerContext *vpc, void **release_ptr, SafeQueueContext *queue, uint8_t **data,
-                                  double current_time_in_sec, AVRational time_base) {
+double _internal_grab_video_frame(MediaPlayerContext *vpc, void **release_ptr, SafeQueueContext *queue, uint8_t **data, AVRational time_base) {
   AVFrame *frame = safe_queue_peek_front(queue);
 
   if (frame != NULL) {
     double time_in_sec = (double) (av_q2d(time_base) * (double) frame->best_effort_timestamp);
+    double current_time_in_sec;
+    if (vpc->first_frame == 1) {
+      vpc->start_time = get_time_in_seconds_with_rate(vpc) - time_in_sec;
+      vpc->first_frame = 0;
+      logging("time_in_sec %lf", time_in_sec);
+    }
+    current_time_in_sec = get_time_in_seconds_with_rate(vpc) - vpc->start_time;
 
     if (time_in_sec <= current_time_in_sec) {
 
@@ -222,17 +235,16 @@ double player_grab_video_frame(MediaPlayerContext *vpc, void **release_ptr, uint
 
   if (vpc->buffering == 1) {
     if (safe_queue_is_full(vpc->video_queue) == 1 || safe_queue_is_full(vpc->audio_queue) == 1) {
+      logging("end buffering");
       vpc->start_time = get_time_in_seconds_with_rate(vpc) - vpc->video_progress_time;
       vpc->buffering = 0;
-      logging("end buffering");
     }
   }
 
   if (vpc->playing == 1 && vpc->buffering == 0) {
-    double current_time_in_sec = get_time_in_seconds_with_rate(vpc) - vpc->start_time;
     double current_frame_time = 0.0;
 
-    current_frame_time = _internal_grab_video_frame(vpc, release_ptr, vpc->video_queue, data, current_time_in_sec,
+    current_frame_time = _internal_grab_video_frame(vpc, release_ptr, vpc->video_queue, data,
                                                     vpc->dectx->video_avs->time_base);
 
     if (current_frame_time != 0.0f) {
@@ -241,7 +253,6 @@ double player_grab_video_frame(MediaPlayerContext *vpc, void **release_ptr, uint
       if (vpc->loop == 1 && current_frame_time < vpc->last_video_frame_time &&
           vpc->last_video_frame_time != 0.0f) { // It's not continuos... so we made a loop
         vpc->start_time = get_time_in_seconds_with_rate(vpc);
-        current_time_in_sec = 0.0f;
       }
       vpc->last_video_frame_time = current_frame_time;
     }

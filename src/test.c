@@ -35,19 +35,23 @@ void test_format(const char *test_name, const char *url, uint8_t expected_state)
   double timeout = get_time_in_seconds() + 30.0;
   MediaPlayerContext *vpc = player_create(url);
 
-  while (player_get_state(vpc) == StateLoading) {}
+  while (player_get_state(vpc) == StateLoading) {
+    msleep(1.0);
+  }
 
+  logging("player_get_state=%d vs %d", player_get_state(vpc), expected_state);
   assert(player_get_state(vpc) == expected_state);
 
   if (player_get_state(vpc) != StateReady) {
     return;
   }
 
+  player_set_loop(vpc, 1);
   player_play(vpc);
 
   int video_frames = 0;
   int audio_frames = 0;
-  while (audio_frames < 10 || video_frames < 10) {
+  while (audio_frames < 128 || video_frames < 128) {
 
     void *release_ptr = NULL;
     uint8_t *videoData = NULL;
@@ -57,6 +61,7 @@ void test_format(const char *test_name, const char *url, uint8_t expected_state)
       if (videoData != NULL) {
         player_release_frame(vpc, release_ptr);
         ++video_frames;
+        logging("frames: %d", video_frames);
       }
     } while (videoData != NULL);
 
@@ -74,6 +79,7 @@ void test_format(const char *test_name, const char *url, uint8_t expected_state)
     msleep(1);
 
     if (get_time_in_seconds() >= timeout) {
+      logging("timeout error");
       assert(0 == 1);
     }
   }
@@ -92,8 +98,15 @@ void test_seek() {
 
 int main() {
   logging("DCLVideoPlayer Tests");
+  //test_format("HTTPS+?", "https://peer-lb.decentraland.org/content/contents/QmWhxckWadLR3qQE5VqBBKDyt5Uj6bkDwRSAEfJ2vU1iZR", StateReady);
+
+  test_format("HTTPS+?", "https://eu-nl-012.worldcast.tv/dancetelevisionthree/dancetelevisionthree.m3u8", StateReady);
 
   test_decoder();
+
+  test_format("HTTPS+HLS 1", "https://player.vimeo.com/external/552481870.m3u8?s=c312c8533f97e808fccc92b0510b085c8122a875", StateReady);
+
+  test_format("HTTPS+HLS 2", "https://player.vimeo.com/external/575854261.m3u8?s=d09797037b7f4f1013d337c04836d1e998ad9c80", StateReady);
 
   test_format("HTTP+MP4", "http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",
               StateReady);

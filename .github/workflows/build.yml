@@ -99,6 +99,7 @@ jobs:
           ninja --version
           cmake --version
           gcc --version
+          ldd --version
 
       - name: Install dependencies on macOS
         if: startsWith(matrix.config.os, 'macos')
