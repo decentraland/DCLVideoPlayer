@@ -4,8 +4,6 @@
 #include "safeframequeue.h"
 #include "threadqueue.h"
 
-QueueContext *thread_queue = NULL;
-
 enum State {
     StateLoading = 0,
     StateReady = 1,
@@ -35,7 +33,7 @@ typedef struct MediaPlayerContext {
     double playback_reference_with_rate;
 } MediaPlayerContext;
 
-void player_join_threads();
+void player_stop_all_threads();
 
 MediaPlayerContext *player_create(const char *url);
 
