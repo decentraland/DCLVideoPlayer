@@ -85,7 +85,7 @@ void test_format(const char *test_name, const char *url, uint8_t expected_state)
   }
 
   player_destroy(vpc);
-  player_join_threads();
+  player_stop_all_threads();
 }
 
 void test_loop() {

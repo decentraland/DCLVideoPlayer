@@ -333,6 +333,7 @@ int decoder_process_frame(DecoderContext *dectx, ProcessOutput *processOutput) {
   } else {
 
     if (dectx->loop == 1) {
+      logging("decoder: loop");
       pthread_mutex_unlock(&dectx->lock); // Avoid deadlock
       decoder_seek(dectx, 0.0f);
     } else {

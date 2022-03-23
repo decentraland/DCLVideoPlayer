@@ -3,6 +3,9 @@
 #include <libavformat/avformat.h>
 #include "utils.h"
 
+QueueContext *thread_queue = NULL;
+uint8_t quitting_app = 0;
+
 double get_time_in_seconds_with_rate(MediaPlayerContext *vpc) {
   return ((get_time_in_seconds() * vpc->playback_rate) - vpc->playback_reference_with_rate) + vpc->playback_reference;
 }
@@ -25,7 +28,7 @@ void *_run_decoder(void *arg) {
 
   vpc->state = StateReady;
   int has_frame = 0;
-  while (vpc->thread_running == 1) {
+  while (vpc->thread_running == 1 && quitting_app == 0) {
     has_frame = 0;
     int res = -1;
     int queue_has_space = safe_queue_is_full(vpc->video_queue) == 0 && safe_queue_is_full(vpc->audio_queue) == 0;
@@ -36,7 +39,7 @@ void *_run_decoder(void *arg) {
       if (res == 0) {
         if (processOutput.videoFrame) {
           safe_queue_push(vpc->video_queue, processOutput.videoFrame);
-          //logging("video_count=%d buffering=%d", vpc->video_queue->count, vpc->buffering);
+          logging("video_count=%d buffering=%d", vpc->video_queue->count, vpc->buffering);
           has_frame = 1;
         }
 
@@ -62,10 +65,13 @@ void *_run_decoder(void *arg) {
   return NULL;
 }
 
-void player_join_threads() {
+void player_stop_all_threads() {
+  logging("player_stop_all_threads!");
+  quitting_app = 1;
   while (1) {
     pthread_t thread = queue_pop_front(thread_queue);
     if (thread != NULL_THREAD) {
+      logging("start join on thread");
       int res = pthread_join(thread, NULL);
       logging("thread exit with code=%d", res);
     } else {
@@ -73,6 +79,7 @@ void player_join_threads() {
     }
   }
   queue_destroy(&thread_queue);
+  quitting_app = 0;
 }
 
 MediaPlayerContext *player_create(const char *url) {
@@ -248,7 +255,7 @@ double player_grab_video_frame(MediaPlayerContext *vpc, void **release_ptr, uint
                                                     vpc->dectx->video_avs->time_base);
 
     if (current_frame_time != 0.0f) {
-      //logging("%f VS %f", current_frame_time, vpc->last_video_frame_time);
+      logging("%f VS %f", current_frame_time, vpc->last_video_frame_time);
 
       if (vpc->loop == 1 && current_frame_time < vpc->last_video_frame_time &&
           vpc->last_video_frame_time != 0.0f) { // It's not continuos... so we made a loop
