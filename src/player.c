@@ -28,7 +28,7 @@ void *_run_decoder(void *arg) {
 
   vpc->state = StateReady;
   int has_frame = 0;
-  while (vpc->thread_running == 1 || quitting_app == 1) {
+  while (vpc->thread_running == 1 && quitting_app == 0) {
     has_frame = 0;
     int res = -1;
     int queue_has_space = safe_queue_is_full(vpc->video_queue) == 0 && safe_queue_is_full(vpc->audio_queue) == 0;
@@ -71,7 +71,7 @@ void player_stop_all_threads() {
   while (1) {
     pthread_t thread = queue_pop_front(thread_queue);
     if (thread != NULL_THREAD) {
-      logging("start join on thread %d", (int)thread);
+      logging("start join on thread");
       int res = pthread_join(thread, NULL);
       logging("thread exit with code=%d", res);
     } else {
