@@ -79,6 +79,7 @@ void player_stop_all_threads() {
     }
   }
   queue_destroy(&thread_queue);
+  quitting_app = 0;
 }
 
 MediaPlayerContext *player_create(const char *url) {
