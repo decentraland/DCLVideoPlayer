@@ -1,4 +1,5 @@
-#pragma once
+#ifndef H_SAFEFRAMEQUEUE
+#define H_SAFEFRAMEQUEUE
 
 #include <stdlib.h>
 #include "libavutil/frame.h"
@@ -32,3 +33,5 @@ void safe_queue_push(SafeQueueContext *queue, AVFrame *frame);
 void safe_queue_clean(SafeQueueContext *queue);
 
 void safe_queue_destroy(SafeQueueContext **queueRef);
+
+#endif

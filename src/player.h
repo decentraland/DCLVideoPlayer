@@ -1,4 +1,5 @@
-#pragma once
+#ifndef H_PLAYER
+#define H_PLAYER
 
 #include "decoder.h"
 #include "safeframequeue.h"
@@ -21,6 +22,9 @@ typedef struct MediaPlayerContext {
 
     double start_time;
     double video_progress_time;
+
+    uint8_t convert_to_rgb;
+    uint8_t id;
     uint8_t playing;
     uint8_t loop;
     uint8_t state;
@@ -35,7 +39,7 @@ typedef struct MediaPlayerContext {
 
 void player_stop_all_threads();
 
-MediaPlayerContext *player_create(const char *url);
+MediaPlayerContext *player_create(const char *url, uint8_t convert_to_rgb);
 
 void player_destroy(MediaPlayerContext *vpc);
 
@@ -78,3 +82,5 @@ double player_get_start_time(MediaPlayerContext *vpc);
 void player_set_start_time(MediaPlayerContext *vpc, double time);
 
 double player_get_global_time(MediaPlayerContext *vpc);
+
+#endif

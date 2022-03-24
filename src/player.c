@@ -5,6 +5,7 @@
 
 QueueContext *thread_queue = NULL;
 uint8_t quitting_app = 0;
+uint8_t last_id = 0;
 
 double get_time_in_seconds_with_rate(MediaPlayerContext *vpc) {
   return ((get_time_in_seconds() * vpc->playback_rate) - vpc->playback_reference_with_rate) + vpc->playback_reference;
@@ -14,14 +15,14 @@ void *_run_decoder(void *arg) {
   MediaPlayerContext *vpc = arg;
   const char *url = vpc->url;
 
-  vpc->dectx = decoder_create(url);
+  vpc->dectx = decoder_create(url, vpc->id, vpc->convert_to_rgb);
 
   if (vpc->dectx == NULL) {
     vpc->state = StateError;
     safe_queue_destroy(&vpc->video_queue);
     safe_queue_destroy(&vpc->audio_queue);
     free(vpc->url);
-    logging("thread exit with error");
+    logging("%d thread exit with error", vpc->id);
     pthread_exit(NULL);
     return NULL;
   }
@@ -39,7 +40,7 @@ void *_run_decoder(void *arg) {
       if (res == 0) {
         if (processOutput.videoFrame) {
           safe_queue_push(vpc->video_queue, processOutput.videoFrame);
-          logging("video_count=%d buffering=%d", vpc->video_queue->count, vpc->buffering);
+          logging("%d video_count=%d buffering=%d", vpc->id, vpc->video_queue->count, vpc->buffering);
           has_frame = 1;
         }
 
@@ -60,7 +61,7 @@ void *_run_decoder(void *arg) {
   free(vpc->url);
   free(vpc);
 
-  logging("thread exit correctly");
+  logging("%d thread exit correctly", vpc->id);
   pthread_exit(NULL);
   return NULL;
 }
@@ -81,10 +82,11 @@ void player_stop_all_threads() {
   queue_destroy(&thread_queue);
 }
 
-MediaPlayerContext *player_create(const char *url) {
+MediaPlayerContext *player_create(const char *url, uint8_t convert_to_rgb) {
   logging("player_create %s", url);
   MediaPlayerContext *vpc = (MediaPlayerContext *) calloc(1, sizeof(MediaPlayerContext));
 
+  vpc->convert_to_rgb = convert_to_rgb;
   vpc->state = StateLoading;
   vpc->dectx = NULL;
   vpc->video_queue = safe_queue_create(64);
@@ -103,6 +105,8 @@ MediaPlayerContext *player_create(const char *url) {
   vpc->buffering = 1;
   vpc->first_frame = 1;
 
+  vpc->id = get_next_id(&last_id);
+
   vpc->url = malloc(strlen(url) + 1);
   strcpy(vpc->url, url);
 
@@ -111,7 +115,7 @@ MediaPlayerContext *player_create(const char *url) {
   int err = pthread_create(&(thread_id), NULL, &_run_decoder, (void *) vpc);
   if (err != 0) {
     vpc->state = StateError;
-    logging("ERROR can't create thread_id :[%s]", strerror(err));
+    logging("%d ERROR can't create thread_id :[%s]", vpc->id, strerror(err));
   } else {
     if (thread_queue == NULL)
       thread_queue = queue_create();
@@ -121,7 +125,7 @@ MediaPlayerContext *player_create(const char *url) {
 }
 
 void player_destroy(MediaPlayerContext *vpc) {
-  logging("player_destroy");
+  logging("%d player_destroy", vpc->id);
   vpc->thread_running = 0;
 }
 
@@ -129,14 +133,14 @@ void player_play(MediaPlayerContext *vpc) {
   if (vpc->playing == 1) return;
   vpc->start_time = get_time_in_seconds_with_rate(vpc) - vpc->video_progress_time;
   vpc->playing = 1;
-  logging("player_play");
+  logging("%d player_play", vpc->id);
 }
 
 void player_stop(MediaPlayerContext *vpc) {
   if (vpc->playing == 0) return;
   vpc->playing = 0;
   vpc->video_progress_time = get_time_in_seconds_with_rate(vpc) - vpc->start_time;
-  logging("player_stop");
+  logging("%d player_stop", vpc->id);
 }
 
 int player_get_state(MediaPlayerContext *vpc) {
@@ -189,6 +193,13 @@ void player_set_playback_rate(MediaPlayerContext *vpc, double playback_rate) {
 }
 
 void player_seek(MediaPlayerContext *vpc, float time) {
+  logging("%d player_seek %f", vpc->id, time);
+
+  if (vpc->first_frame == 1) {
+    vpc->start_time = get_time_in_seconds_with_rate(vpc) - time;
+    vpc->first_frame = 0;
+  }
+
   decoder_seek(vpc->dectx, time);
 
   safe_queue_clean(vpc->video_queue);
@@ -208,21 +219,27 @@ double _internal_grab_video_frame(MediaPlayerContext *vpc, void **release_ptr, S
     if (vpc->first_frame == 1) {
       vpc->start_time = get_time_in_seconds_with_rate(vpc) - time_in_sec;
       vpc->first_frame = 0;
-      logging("time_in_sec %lf", time_in_sec);
+      logging("%d time_in_sec %lf", vpc->id, time_in_sec);
     }
     current_time_in_sec = get_time_in_seconds_with_rate(vpc) - vpc->start_time;
 
     if (time_in_sec <= current_time_in_sec) {
 
       *release_ptr = frame;
-      *data = frame->data[0];
+      if (vpc->convert_to_rgb == 1) {
+        data[0] = frame->data[0];
+      } else {
+        data[0] = frame->data[0];
+        data[1] = frame->data[1];
+        data[2] = frame->data[2];
+      }
       safe_queue_pop_front(queue);
 
       if (safe_queue_is_empty(queue)) {
         vpc->buffering = 1;
         vpc->video_progress_time = current_time_in_sec;
         vpc->last_video_frame_time = 0.0f;
-        logging("start buffering");
+        logging("%d start buffering", vpc->id);
       }
 
       return time_in_sec;
@@ -241,7 +258,7 @@ double player_grab_video_frame(MediaPlayerContext *vpc, void **release_ptr, uint
 
   if (vpc->buffering == 1) {
     if (safe_queue_is_full(vpc->video_queue) == 1 || safe_queue_is_full(vpc->audio_queue) == 1) {
-      logging("end buffering");
+      logging("%d end buffering", vpc->id);
       vpc->start_time = get_time_in_seconds_with_rate(vpc) - vpc->video_progress_time;
       vpc->buffering = 0;
     }
@@ -254,7 +271,7 @@ double player_grab_video_frame(MediaPlayerContext *vpc, void **release_ptr, uint
                                                     vpc->dectx->video_avs->time_base);
 
     if (current_frame_time != 0.0f) {
-      logging("%f VS %f", current_frame_time, vpc->last_video_frame_time);
+      logging("%d %f VS %f", vpc->id, current_frame_time, vpc->last_video_frame_time);
 
       if (vpc->loop == 1 && current_frame_time < vpc->last_video_frame_time &&
           vpc->last_video_frame_time != 0.0f) { // It's not continuos... so we made a loop

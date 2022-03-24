@@ -1,4 +1,5 @@
-#pragma once
+#ifndef H_UTILS
+#define H_UTILS
 
 #include <time.h>
 #include <errno.h>
@@ -64,3 +65,15 @@ int usleep(long usec) {
 
   return res;
 }
+
+uint8_t get_next_id(uint8_t* id) {
+  uint8_t new_id = *id;
+  if (*id == UINT8_MAX) {
+    *id = 0;
+  } else {
+    *id += 1;
+  }
+  return new_id;
+}
+
+#endif

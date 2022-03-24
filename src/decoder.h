@@ -1,4 +1,5 @@
-#pragma once
+#ifndef H_DECODER
+#define H_DECODER
 
 #include <libavcodec/avcodec.h>
 #include <libavformat/avformat.h>
@@ -32,10 +33,15 @@ typedef struct DecoderContext {
     AVPacket *av_packet;
 
     SwrContext *swr_ctx;
+    uint8_t convert_to_rgb;
+    uint8_t id;
     uint8_t loop;
     double video_frame_rate;
     double video_duration_in_sec;
     double audio_duration_in_sec;
+
+    uint8_t loop_id;
+    uint8_t last_loop_id;
 
     int audio_frequency;
     int audio_channels;
@@ -47,10 +53,12 @@ typedef struct ProcessOutput {
     AVFrame *audioFrame;
 } ProcessOutput;
 
-DecoderContext *decoder_create(const char *url);
+DecoderContext *decoder_create(const char *url, uint8_t id, uint8_t convert_to_rgb);
 
 int decoder_process_frame(DecoderContext *dectx, ProcessOutput *processOutput);
 
 void decoder_destroy(DecoderContext *dectx);
 
 void decoder_seek(DecoderContext *dectx, float timeInSeconds);
+
+#endif
