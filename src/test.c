@@ -4,11 +4,28 @@
 #include "utils.h"
 #include <assert.h>
 
+void test_id_generator()
+{
+  uint8_t id = 254;
+  uint8_t new_id = 0;
+  new_id = get_next_id(&id);
+  assert(new_id == 254);
+  assert(id == 255);
+
+  new_id = get_next_id(&id);
+  assert(new_id == 255);
+  assert(id == 0);
+
+  new_id = get_next_id(&id);
+  assert(new_id == 0);
+  assert(id == 1);
+}
+
 void test_decoder() {
   logging("Running Decoder\n");
 
   DecoderContext *dectx = decoder_create(
-          "http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4");
+          "http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4", 0, 1);
   if (dectx == NULL) {
     logging("error on create");
     return;
@@ -33,7 +50,7 @@ void test_decoder() {
 void test_format(const char *test_name, const char *url, uint8_t expected_state) {
   logging(test_name);
   double timeout = get_time_in_seconds() + 30.0;
-  MediaPlayerContext *vpc = player_create(url);
+  MediaPlayerContext *vpc = player_create(url, 1);
 
   while (player_get_state(vpc) == StateLoading) {
     msleep(1.0);
@@ -98,6 +115,11 @@ void test_seek() {
 
 int main() {
   logging("DCLVideoPlayer Tests");
+
+  test_id_generator();
+
+  test_loop("https://player.vimeo.com/external/691621058.m3u8?s=a2aa7b62cd0431537ed53cd699109e46d0de8575");
+
   //test_format("HTTPS+?", "https://peer-lb.decentraland.org/content/contents/QmWhxckWadLR3qQE5VqBBKDyt5Uj6bkDwRSAEfJ2vU1iZR", StateReady);
 
   test_format("HTTPS+?", "https://eu-nl-012.worldcast.tv/dancetelevisionthree/dancetelevisionthree.m3u8", StateReady);

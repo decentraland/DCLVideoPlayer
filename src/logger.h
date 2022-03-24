@@ -1,4 +1,5 @@
-#pragma once
+#ifndef H_LOGGER
+#define H_LOGGER
 
 static void logging(const char *fmt, ...) {
   va_list args;
@@ -8,3 +9,5 @@ static void logging(const char *fmt, ...) {
   va_end(args);
   fprintf(stderr, "\n");
 }
+
+#endif
