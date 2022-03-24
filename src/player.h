@@ -18,8 +18,6 @@ typedef struct MediaPlayerContext {
     SafeQueueContext *video_queue;
     SafeQueueContext *audio_queue;
 
-    double last_video_frame_time;
-
     double start_time;
     double video_progress_time;
 
@@ -31,6 +29,7 @@ typedef struct MediaPlayerContext {
     uint8_t buffering;
     uint8_t thread_running;
     uint8_t first_frame;
+    uint8_t last_loop_id;
 
     double playback_rate;
     double playback_reference;

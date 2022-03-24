@@ -28,6 +28,7 @@ void *_run_decoder(void *arg) {
   }
 
   vpc->state = StateReady;
+
   int has_frame = 0;
   while (vpc->thread_running == 1 && quitting_app == 0) {
     has_frame = 0;
@@ -39,13 +40,13 @@ void *_run_decoder(void *arg) {
       res = decoder_process_frame(vpc->dectx, &processOutput);
       if (res == 0) {
         if (processOutput.videoFrame) {
-          safe_queue_push(vpc->video_queue, processOutput.videoFrame);
-          logging("%d video_count=%d buffering=%d", vpc->id, vpc->video_queue->count, vpc->buffering);
+          safe_queue_push(vpc->video_queue, processOutput.videoFrame, processOutput.loop_id);
+          logging("%d video_count=%d buffering=%d loop_id=%d", vpc->id, vpc->video_queue->count, vpc->buffering, processOutput.loop_id);
           has_frame = 1;
         }
 
         if (processOutput.audioFrame) {
-          safe_queue_push(vpc->audio_queue, processOutput.audioFrame);
+          safe_queue_push(vpc->audio_queue, processOutput.audioFrame, 0);
           has_frame = 1;
         }
       }
@@ -101,7 +102,7 @@ MediaPlayerContext *player_create(const char *url, uint8_t convert_to_rgb) {
   vpc->playing = 0;
   vpc->loop = 0;
   vpc->video_progress_time = 0.0;
-  vpc->last_video_frame_time = 0.0f;
+  vpc->last_loop_id = 0;
   vpc->thread_running = 1;
   vpc->buffering = 1;
   vpc->first_frame = 1;
@@ -208,7 +209,6 @@ void player_seek(MediaPlayerContext *vpc, float time) {
 
   vpc->buffering = 1;
   vpc->video_progress_time = time;
-  vpc->last_video_frame_time = 0.0f;
 }
 
 double _internal_grab_video_frame(MediaPlayerContext *vpc, void **release_ptr, SafeQueueContext *queue, uint8_t **data, AVRational time_base) {
@@ -239,7 +239,6 @@ double _internal_grab_video_frame(MediaPlayerContext *vpc, void **release_ptr, S
       if (safe_queue_is_empty(queue)) {
         vpc->buffering = 1;
         vpc->video_progress_time = current_time_in_sec;
-        vpc->last_video_frame_time = 0.0f;
         logging("%d start buffering", vpc->id);
       }
 
@@ -267,18 +266,17 @@ double player_grab_video_frame(MediaPlayerContext *vpc, void **release_ptr, uint
 
   if (vpc->playing == 1 && vpc->buffering == 0) {
     double current_frame_time = 0.0;
+    uint8_t loop_id = safe_queue_peek_front_loop_id(vpc->video_queue);
 
     current_frame_time = _internal_grab_video_frame(vpc, release_ptr, vpc->video_queue, data,
                                                     vpc->dectx->video_avs->time_base);
 
     if (current_frame_time != 0.0f) {
-      logging("%d %f VS %f", vpc->id, current_frame_time, vpc->last_video_frame_time);
-
-      if (vpc->loop == 1 && current_frame_time < vpc->last_video_frame_time &&
-          vpc->last_video_frame_time != 0.0f) { // It's not continuos... so we made a loop
-        vpc->start_time = get_time_in_seconds_with_rate(vpc);
+      if (vpc->loop == 1 && loop_id != vpc->last_loop_id) { // It's not continuos... so we made a loop
+        logging("%d loop detected!", vpc->id);
+        vpc->first_frame = 1;
+        vpc->last_loop_id = loop_id;
       }
-      vpc->last_video_frame_time = current_frame_time;
     }
     return current_frame_time;
   }

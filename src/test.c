@@ -71,16 +71,17 @@ void test_format(const char *test_name, const char *url, uint8_t expected_state)
   while (audio_frames < 128 || video_frames < 128) {
 
     void *release_ptr = NULL;
-    uint8_t *videoData = NULL;
     do {
-      videoData = NULL;
-      player_grab_video_frame(vpc, &release_ptr, &videoData);
-      if (videoData != NULL) {
+      uint8_t* videoData[3];
+      player_grab_video_frame(vpc, &release_ptr, videoData);
+      if (videoData[0] != NULL) {
         player_release_frame(vpc, release_ptr);
         ++video_frames;
         logging("frames: %d", video_frames);
+      } else {
+        break;
       }
-    } while (videoData != NULL);
+    } while (1);
 
     uint8_t *audio_data = NULL;
     int frame_size = 0;
@@ -105,8 +106,63 @@ void test_format(const char *test_name, const char *url, uint8_t expected_state)
   player_stop_all_threads();
 }
 
-void test_loop() {
+void test_loop(const char* url) {
+  double timeout = get_time_in_seconds() + 30.0;
+  MediaPlayerContext *vpc = player_create(url, 1);
 
+  while (player_get_state(vpc) == StateLoading) {
+    msleep(1.0);
+  }
+
+  logging("player_get_state=%d vs %d", player_get_state(vpc), StateReady);
+  assert(player_get_state(vpc) == StateReady);
+
+  if (player_get_state(vpc) != StateReady) {
+    return;
+  }
+
+  player_set_loop(vpc, 1);
+  player_play(vpc);
+  player_seek(vpc, 77.0);
+
+  int video_frames = 0;
+  int audio_frames = 0;
+  while (1) {
+
+    void *release_ptr = NULL;
+    do {
+      uint8_t* videoData[3];
+      player_grab_video_frame(vpc, &release_ptr, videoData);
+      if (videoData[0] != NULL) {
+        player_release_frame(vpc, release_ptr);
+        ++video_frames;
+        logging("frames: %d", video_frames);
+      } else {
+        break;
+      }
+    } while (1);
+
+    uint8_t *audio_data = NULL;
+    int frame_size = 0;
+    do {
+      audio_data = NULL;
+      player_grab_audio_frame(vpc, &release_ptr, &audio_data, &frame_size);
+      if (audio_data != NULL) {
+        player_release_frame(vpc, release_ptr);
+        ++audio_frames;
+      }
+    } while (audio_data != NULL);
+
+    msleep(1);
+
+    if (get_time_in_seconds() >= timeout) {
+      logging("timeout error");
+      assert(0 == 1);
+    }
+  }
+
+  player_destroy(vpc);
+  player_stop_all_threads();
 }
 
 void test_seek() {

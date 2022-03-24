@@ -110,7 +110,7 @@ DecoderContext *decoder_create(const char *url, uint8_t id, uint8_t convert_to_r
   DecoderContext *dectx = (DecoderContext *) calloc(1, sizeof(DecoderContext));
   dectx->id = id;
   dectx->loop_id = 0;
-  dectx->last_loop_id = 255;
+  dectx->last_loop_id = 0;
   logging("%d initializing all the containers, codecs and protocols.", dectx->id);
 
   dectx->loop = 0;
@@ -317,6 +317,11 @@ int decoder_process_frame(DecoderContext *dectx, ProcessOutput *processOutput) {
   // https://ffmpeg.org/doxygen/trunk/group__lavf__decoding.html#ga4fdb3084415a82e3810de6ee60e46a61
   if (av_read_frame(dectx->av_format_ctx, dectx->av_packet) >= 0) {
     if (dectx->av_packet->stream_index == dectx->video_index) {
+      if (dectx->loop_id == dectx->last_loop_id) {
+        dectx->loop_id = get_next_id(&dectx->last_loop_id);
+      }
+      processOutput->loop_id = dectx->loop_id;
+
       double timeInSec = (double) (av_q2d(dectx->video_avs->time_base) *
                                    (double) dectx->av_frame->best_effort_timestamp);
       //logging("[VIDEO] AVPacket frame-number=%d timeInSec=%lf", dectx->video_avcc->frame_number, timeInSec);
@@ -345,7 +350,8 @@ int decoder_process_frame(DecoderContext *dectx, ProcessOutput *processOutput) {
     if (dectx->loop == 1) {
       if (dectx->loop_id != dectx->last_loop_id) {
         logging("%d decoder: loop", dectx->id);
-        dectx->loop_id = get_next_id(&dectx->loop_id);
+        dectx->loop_id = dectx->last_loop_id;
+
         pthread_mutex_unlock(&dectx->lock); // Avoid deadlock
         decoder_seek(dectx, 0.0f);
       }

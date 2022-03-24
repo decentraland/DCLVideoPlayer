@@ -51,6 +51,7 @@ typedef struct DecoderContext {
 typedef struct ProcessOutput {
     AVFrame *videoFrame;
     AVFrame *audioFrame;
+    uint8_t loop_id;
 } ProcessOutput;
 
 DecoderContext *decoder_create(const char *url, uint8_t id, uint8_t convert_to_rgb);
