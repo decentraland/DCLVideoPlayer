@@ -1,4 +1,5 @@
-#pragma once
+#ifndef H_THREADQUEUE
+#define H_THREADQUEUE
 
 #include <stdlib.h>
 #include <pthread.h>
@@ -31,3 +32,5 @@ void queue_push(QueueContext *queue, pthread_t thread_id);
 void queue_clean(QueueContext *queue);
 
 void queue_destroy(QueueContext **queueRef);
+
+#endif

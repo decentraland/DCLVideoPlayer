@@ -120,6 +120,8 @@ int main() {
 
   test_loop("https://player.vimeo.com/external/691621058.m3u8?s=a2aa7b62cd0431537ed53cd699109e46d0de8575");
 
+  return 0;
+
   //test_format("HTTPS+?", "https://peer-lb.decentraland.org/content/contents/QmWhxckWadLR3qQE5VqBBKDyt5Uj6bkDwRSAEfJ2vU1iZR", StateReady);
 
   test_format("HTTPS+?", "https://eu-nl-012.worldcast.tv/dancetelevisionthree/dancetelevisionthree.m3u8", StateReady);
