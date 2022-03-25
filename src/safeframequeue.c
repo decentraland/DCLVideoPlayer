@@ -57,15 +57,25 @@ AVFrame *safe_queue_peek_front(SafeQueueContext *queue) {
   return frame;
 }
 
+uint8_t safe_queue_peek_front_loop_id(SafeQueueContext *queue) {
+  uint8_t loop_id = 0;
+  pthread_mutex_lock(&queue->lock);
+  if (queue->first) {
+    loop_id = queue->first->loop_id;
+  }
+  pthread_mutex_unlock(&queue->lock);
+  return loop_id;
+}
+
 AVFrame *safe_queue_pop_front(SafeQueueContext *queue) {
   AVFrame *frame = NULL;
   pthread_mutex_lock(&queue->lock);
   if (queue->first) {
     FrameBuffer *firstFrameBuffer = queue->first;
     frame = firstFrameBuffer->frame;
-    queue->first = firstFrameBuffer->nextFrame;
-    if (firstFrameBuffer->nextFrame == NULL) {
-      queue->last = firstFrameBuffer->nextFrame;
+    queue->first = firstFrameBuffer->next_frame;
+    if (firstFrameBuffer->next_frame == NULL) {
+      queue->last = firstFrameBuffer->next_frame;
     }
     --queue->count;
     free(firstFrameBuffer);
@@ -74,21 +84,22 @@ AVFrame *safe_queue_pop_front(SafeQueueContext *queue) {
   return frame;
 }
 
-void safe_queue_push(SafeQueueContext *queue, AVFrame *frame) {
+void safe_queue_push(SafeQueueContext *queue, AVFrame *frame, uint8_t loop_id) {
   pthread_mutex_lock(&queue->lock);
-  FrameBuffer *frameBuffer = (FrameBuffer *) calloc(1, sizeof(FrameBuffer));
-  frameBuffer->nextFrame = NULL;
-  frameBuffer->frame = frame;
+  FrameBuffer *frame_buffer = (FrameBuffer *) calloc(1, sizeof(FrameBuffer));
+  frame_buffer->next_frame = NULL;
+  frame_buffer->frame = frame;
+  frame_buffer->loop_id = loop_id;
 
   if (queue->first == NULL) {
-    queue->first = frameBuffer;
+    queue->first = frame_buffer;
   }
 
   if (queue->last == NULL) {
-    queue->last = frameBuffer;
+    queue->last = frame_buffer;
   } else {
-    queue->last->nextFrame = frameBuffer;
-    queue->last = frameBuffer;
+    queue->last->next_frame = frame_buffer;
+    queue->last = frame_buffer;
   }
   ++queue->count;
   pthread_mutex_unlock(&queue->lock);

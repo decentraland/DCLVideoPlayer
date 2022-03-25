@@ -1,4 +1,5 @@
-#pragma once
+#ifndef H_SAFEFRAMEQUEUE
+#define H_SAFEFRAMEQUEUE
 
 #include <stdlib.h>
 #include "libavutil/frame.h"
@@ -6,7 +7,8 @@
 
 typedef struct FrameBuffer {
     AVFrame *frame;
-    struct FrameBuffer *nextFrame;
+    uint8_t loop_id;
+    struct FrameBuffer *next_frame;
 } FrameBuffer;
 
 typedef struct SafeQueueContext {
@@ -27,8 +29,12 @@ AVFrame *safe_queue_pop_front(SafeQueueContext *queue);
 
 AVFrame *safe_queue_peek_front(SafeQueueContext *queue);
 
-void safe_queue_push(SafeQueueContext *queue, AVFrame *frame);
+uint8_t safe_queue_peek_front_loop_id(SafeQueueContext *queue);
+
+void safe_queue_push(SafeQueueContext *queue, AVFrame *frame, uint8_t loop_id);
 
 void safe_queue_clean(SafeQueueContext *queue);
 
 void safe_queue_destroy(SafeQueueContext **queueRef);
+
+#endif

@@ -1,5 +1,6 @@
 #include "decoder.h"
 #include "logger.h"
+#include "utils.h"
 
 #include <libswscale/swscale.h>
 #include <libavutil/avutil.h>
@@ -7,26 +8,39 @@
 
 static int lastID = 0;
 
-int fill_stream_info(AVStream *avs, AVCodec **avc, AVCodecContext **avcc) {
+void decoder_replay(DecoderContext *dectx) {
+  int res = 0;
+  float time_in_seconds = 0;
+  do {
+    uint64_t timestamp = (uint64_t) time_in_seconds * AV_TIME_BASE;
+    res = avformat_seek_file(dectx->av_format_ctx, -1, INT64_MIN, timestamp, INT64_MAX, AVSEEK_FLAG_ANY);
+    logging("%d decoder seek res=%d message=%s time_in_seconds=%f", dectx->id, res, av_err2str(res), time_in_seconds);
+    time_in_seconds += 0.1;
+  } while (res != 0);
+  avcodec_flush_buffers(dectx->video_avcc);
+  avcodec_flush_buffers(dectx->audio_avcc);
+}
+
+int fill_stream_info(DecoderContext *dectx, AVStream *avs, AVCodec **avc, AVCodecContext **avcc) {
   *avc = (AVCodec *) avcodec_find_decoder(avs->codecpar->codec_id);
   if (!*avc) {
-    logging("failed to find the codec");
+    logging("%d failed to find the codec", dectx->id);
     return -1;
   }
 
   *avcc = avcodec_alloc_context3(*avc);
   if (!*avcc) {
-    logging("failed to alloc memory for codec context");
+    logging("%d failed to alloc memory for codec context", dectx->id);
     return -1;
   }
 
   if (avcodec_parameters_to_context(*avcc, avs->codecpar) < 0) {
-    logging("failed to fill codec context");
+    logging("%d failed to fill codec context", dectx->id);
     return -1;
   }
 
   if (avcodec_open2(*avcc, *avc, NULL) < 0) {
-    logging("failed to open codec");
+    logging("%d failed to open codec", dectx->id);
     return -1;
   }
   return 0;
@@ -63,13 +77,13 @@ int prepare_swr(DecoderContext *dectx) {
 }
 
 int prepare_decoder(DecoderContext *dectx) {
-  logging("preparing decoder");
+  logging("%d preparing decoder", dectx->id);
   for (int i = 0; i < dectx->av_format_ctx->nb_streams; i++) {
     if (dectx->av_format_ctx->streams[i]->codecpar->codec_type == AVMEDIA_TYPE_VIDEO) {
       dectx->video_avs = dectx->av_format_ctx->streams[i];
       dectx->video_index = i;
 
-      if (fill_stream_info(dectx->video_avs, &dectx->video_avc, &dectx->video_avcc)) { return -1; }
+      if (fill_stream_info(dectx, dectx->video_avs, &dectx->video_avc, &dectx->video_avcc)) { return -1; }
 
       dectx->video_frame_rate = av_q2d(dectx->video_avs->r_frame_rate);
 
@@ -85,7 +99,7 @@ int prepare_decoder(DecoderContext *dectx) {
       dectx->audio_avs = dectx->av_format_ctx->streams[i];
       dectx->audio_index = i;
 
-      if (fill_stream_info(dectx->audio_avs, &dectx->audio_avc, &dectx->audio_avcc)) { return -1; }
+      if (fill_stream_info(dectx, dectx->audio_avs, &dectx->audio_avc, &dectx->audio_avcc)) { return -1; }
       prepare_swr(dectx);
 
       if (dectx->audio_avs->duration != AV_NOPTS_VALUE) {
@@ -97,22 +111,26 @@ int prepare_decoder(DecoderContext *dectx) {
       }
 
     } else {
-      logging("skipping streams other than audio and video");
+      logging("%d skipping streams other than audio and video", dectx->id);
     }
   }
 
-  logging("decoder prepared");
+  logging("%d decoder prepared", dectx->id);
   return 0;
 }
 
-DecoderContext *decoder_create(const char *url) {
+DecoderContext *decoder_create(const char *url, uint8_t id, uint8_t convert_to_rgb) {
   DecoderContext *dectx = (DecoderContext *) calloc(1, sizeof(DecoderContext));
-  logging("initializing all the containers, codecs and protocols.");
+  dectx->id = id;
+  dectx->loop_id = 0;
+  dectx->last_loop_id = 0;
+  dectx->convert_to_rgb = convert_to_rgb;
+  logging("%d initializing all the containers, codecs and protocols.", dectx->id);
 
   dectx->loop = 0;
 
   if (pthread_mutex_init(&dectx->lock, NULL) != 0) {
-    logging("ERROR decoder mutex init failed\n");
+    logging("%d ERROR decoder mutex init failed", dectx->id);
     goto free;
   }
 
@@ -121,11 +139,11 @@ DecoderContext *decoder_create(const char *url) {
   // http://ffmpeg.org/doxygen/trunk/structAVFormatContext.html
   dectx->av_format_ctx = avformat_alloc_context();
   if (!dectx->av_format_ctx) {
-    logging("ERROR could not allocate memory for Format Context");
+    logging("%d ERROR could not allocate memory for Format Context", dectx->id);
     goto free;
   }
 
-  logging("opening the input file (%s) and loading format (container) header", url);
+  logging("%d opening the input file (%s) and loading format (container) header", dectx->id, url);
   // Open the file and read its header. The codecs are not opened.
   // The function arguments are:
   // AVFormatContext (the component we allocated memory for),
@@ -134,17 +152,17 @@ DecoderContext *decoder_create(const char *url) {
   // and AVDictionary (which are options to the demuxer)
   // http://ffmpeg.org/doxygen/trunk/group__lavf__decoding.html#ga31d601155e9035d5b0e7efedc894ee49
   if (avformat_open_input(&dectx->av_format_ctx, url, NULL, NULL) != 0) {
-    logging("ERROR could not open the file");
+    logging("%d ERROR could not open the file", dectx->id);
     goto free;
   }
 
   // now we have access to some information about our file
   // since we read its header we can say what format (container) it's
   // and some other information related to the format itself.
-  logging("format %s, duration %lld us, bit_rate %lld", dectx->av_format_ctx->iformat->name,
+  logging("%d format %s, duration %lld us, bit_rate %lld", dectx->id, dectx->av_format_ctx->iformat->name,
           dectx->av_format_ctx->duration, dectx->av_format_ctx->bit_rate);
 
-  logging("finding stream info from format");
+  logging("%d finding stream info from format", dectx->id);
   // read Packets from the Format to get stream information
   // this function populates dectx->av_format_ctx->streams
   // (of size equals to dectx->av_format_ctx->nb_streams)
@@ -154,31 +172,31 @@ DecoderContext *decoder_create(const char *url) {
   // On return each dictionary will be filled with options that were not found.
   // https://ffmpeg.org/doxygen/trunk/group__lavf__decoding.html#gad42172e27cddafb81096939783b157bb
   if (avformat_find_stream_info(dectx->av_format_ctx, NULL) < 0) {
-    logging("ERROR could not get the stream info");
+    logging("%d ERROR could not get the stream info", dectx->id);
     goto free;
   }
 
   if (prepare_decoder(dectx)) {
-    logging("ERROR could not prepare the decoder");
+    logging("%d ERROR could not prepare the decoder", dectx->id);
     goto free;
   }
   // https://ffmpeg.org/doxygen/trunk/structAVFrame.html
   AVFrame *pFrame = av_frame_alloc();
   if (!pFrame) {
-    logging("failed to allocated memory for AVFrame");
+    logging("%d failed to allocated memory for AVFrame", dectx->id);
     goto free;
   }
   // https://ffmpeg.org/doxygen/trunk/structAVPacket.html
   AVPacket *pPacket = av_packet_alloc();
   if (!pPacket) {
-    logging("failed to allocated memory for AVPacket");
+    logging("%d failed to allocated memory for AVPacket", dectx->id);
     goto free;
   }
 
   dectx->av_frame = pFrame;
   dectx->av_packet = pPacket;
 
-  logging("video_duration=%lf audio_duration=%lf fps=%lf", dectx->video_duration_in_sec, dectx->audio_duration_in_sec, dectx->video_frame_rate);
+  logging("%d video_duration=%lf audio_duration=%lf fps=%lf", dectx->id, dectx->video_duration_in_sec, dectx->audio_duration_in_sec, dectx->video_frame_rate);
   return dectx;
 free:
   decoder_destroy(dectx);
@@ -245,13 +263,13 @@ AVFrame *convert_to_rgb24(AVFrame *srcFrame, int frameNumber) {
   return dstFrame;
 }
 
-int decode_packet(AVCodecContext *avcc, AVPacket *av_packet, AVFrame *av_frame) {
+int decode_packet(DecoderContext *dectx, AVCodecContext *avcc, AVPacket *av_packet, AVFrame *av_frame) {
   // Supply raw packet data as input to a decoder
   // https://ffmpeg.org/doxygen/trunk/group__lavc__decoding.html#ga58bc4bf1e0ac59e27362597e467efff3
   int response = avcodec_send_packet(avcc, av_packet);
 
   if (response < 0) {
-    logging("Error while sending a packet to the decoder: %s", av_err2str(response));
+    logging("%d Error while sending a packet to the decoder: %s", dectx->id, av_err2str(response));
     return response;
   }
 
@@ -262,12 +280,12 @@ int decode_packet(AVCodecContext *avcc, AVPacket *av_packet, AVFrame *av_frame) 
     if (response == AVERROR(EAGAIN) || response == AVERROR_EOF) {
       break;
     } else if (response < 0) {
-      logging("Error while receiving a frame from the decoder: %s", av_err2str(response));
+      logging("%d Error while receiving a frame from the decoder: %s", dectx->id, av_err2str(response));
       return response;
     }
 
     if (response >= 0) {
-      /*logging(
+      logging(
           "Frame %d (type=%c, size=%d bytes, format=%d) pts %d key_frame %d [DTS %d]",
           avcc->frame_number,
           av_get_picture_type_char(av_frame->pict_type),
@@ -276,15 +294,21 @@ int decode_packet(AVCodecContext *avcc, AVPacket *av_packet, AVFrame *av_frame) 
           av_frame->pts,
           av_frame->key_frame,
           av_frame->coded_picture_number
-      );*/
+      );
       return 0;
     }
   }
   return -1;
 }
 
-AVFrame *process_video_frame(AVFrame *frame, int frameNumber) {
-  return convert_to_rgb24(frame, frameNumber);
+AVFrame *process_video_frame(DecoderContext *dectx, AVFrame *frame, int frameNumber) {
+  if (dectx->convert_to_rgb == 1) {
+    return convert_to_rgb24(frame, frameNumber);
+  } else {
+    AVFrame *new_frame = av_frame_alloc();
+    dectx->av_frame = new_frame; // Don't convert, create a new frame for decoding and use current frame to process (it will be released by the player)
+    return frame;
+  }
 }
 
 AVFrame *process_audio_frame(DecoderContext *dectx) {
@@ -307,19 +331,24 @@ int decoder_process_frame(DecoderContext *dectx, ProcessOutput *processOutput) {
   // https://ffmpeg.org/doxygen/trunk/group__lavf__decoding.html#ga4fdb3084415a82e3810de6ee60e46a61
   if (av_read_frame(dectx->av_format_ctx, dectx->av_packet) >= 0) {
     if (dectx->av_packet->stream_index == dectx->video_index) {
+      if (dectx->loop_id == dectx->last_loop_id) {
+        dectx->loop_id = get_next_id(&dectx->last_loop_id);
+      }
+      processOutput->loop_id = dectx->loop_id;
+
       double timeInSec = (double) (av_q2d(dectx->video_avs->time_base) *
                                    (double) dectx->av_frame->best_effort_timestamp);
-      //logging("[VIDEO] AVPacket frame-number=%d timeInSec=%lf", dectx->video_avcc->frame_number, timeInSec);
-      res = decode_packet(dectx->video_avcc, dectx->av_packet, dectx->av_frame);
+      logging("[VIDEO] AVPacket frame-number=%d timeInSec=%lf", dectx->video_avcc->frame_number, timeInSec);
+      res = decode_packet(dectx, dectx->video_avcc, dectx->av_packet, dectx->av_frame);
       if (res < 0) {
         pthread_mutex_unlock(&dectx->lock);
         return -1;
       }
-      processOutput->videoFrame = process_video_frame(dectx->av_frame, dectx->video_avcc->frame_number);
+      processOutput->videoFrame = process_video_frame(dectx, dectx->av_frame, dectx->video_avcc->frame_number);
       res = 0;
     } else if (dectx->av_packet->stream_index == dectx->audio_index) {
       //logging("[AUDIO] AVPacket->pts %" PRId64, dectx->av_packet->pts);
-      res = decode_packet(dectx->audio_avcc, dectx->av_packet, dectx->av_frame);
+      res = decode_packet(dectx, dectx->audio_avcc, dectx->av_packet, dectx->av_frame);
       if (res < 0) {
         pthread_mutex_unlock(&dectx->lock);
         return -1;
@@ -333,9 +362,13 @@ int decoder_process_frame(DecoderContext *dectx, ProcessOutput *processOutput) {
   } else {
 
     if (dectx->loop == 1) {
-      logging("decoder: loop");
-      pthread_mutex_unlock(&dectx->lock); // Avoid deadlock
-      decoder_seek(dectx, 0.0f);
+      if (dectx->loop_id != dectx->last_loop_id) {
+        logging("%d decoder: loop", dectx->id);
+        dectx->loop_id = dectx->last_loop_id;
+
+        decoder_replay(dectx);
+        pthread_mutex_unlock(&dectx->lock);
+      }
     } else {
       pthread_mutex_unlock(&dectx->lock);
     }
@@ -346,13 +379,17 @@ int decoder_process_frame(DecoderContext *dectx, ProcessOutput *processOutput) {
 
 void decoder_seek(DecoderContext *dectx, float timeInSeconds) {
   pthread_mutex_lock(&dectx->lock);
+
   uint64_t timestamp = (uint64_t) timeInSeconds * AV_TIME_BASE;
-  av_seek_frame(dectx->av_format_ctx, -1, timestamp, AVSEEK_FLAG_BACKWARD);
+  int res = avformat_seek_file(dectx->av_format_ctx, -1, INT64_MIN, timestamp, INT64_MAX, AVSEEK_FLAG_BACKWARD);
+  logging("%d decoder seek res=%d message=%s", dectx->id, res, av_err2str(res));
+  avcodec_flush_buffers(dectx->video_avcc);
+  avcodec_flush_buffers(dectx->audio_avcc);
   pthread_mutex_unlock(&dectx->lock);
 }
 
 void decoder_destroy(DecoderContext *dectx) {
-  logging("releasing all the resources");
+  logging("%d releasing all the resources", dectx->id);
 
   if (dectx->av_format_ctx)
     avformat_close_input(&dectx->av_format_ctx);
@@ -373,4 +410,12 @@ void decoder_destroy(DecoderContext *dectx) {
   }
 
   free(dectx);
+}
+
+void decoder_print_hw_available() {
+  enum AVHWDeviceType type = AV_HWDEVICE_TYPE_NONE;
+  fprintf(stderr, "Available device types:");
+  while((type = av_hwdevice_iterate_types(type)) != AV_HWDEVICE_TYPE_NONE)
+    fprintf(stderr, " %s", av_hwdevice_get_type_name(type));
+  fprintf(stderr, "\n");
 }
