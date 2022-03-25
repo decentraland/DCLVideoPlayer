@@ -53,7 +53,7 @@ void test_format(const char *test_name, const char *url, uint8_t expected_state)
   MediaPlayerContext *vpc = player_create(url, 1);
 
   while (player_get_state(vpc) == StateLoading) {
-    msleep(1.0);
+    milisleep(1.0);
   }
 
   logging("player_get_state=%d vs %d", player_get_state(vpc), expected_state);
@@ -94,7 +94,7 @@ void test_format(const char *test_name, const char *url, uint8_t expected_state)
       }
     } while (audio_data != NULL);
 
-    msleep(1);
+    milisleep(1);
 
     if (get_time_in_seconds() >= timeout) {
       logging("timeout error");
@@ -111,7 +111,7 @@ void test_loop(const char* url) {
   MediaPlayerContext *vpc = player_create(url, 1);
 
   while (player_get_state(vpc) == StateLoading) {
-    msleep(1.0);
+    milisleep(1.0);
   }
 
   logging("player_get_state=%d vs %d", player_get_state(vpc), StateReady);
@@ -154,7 +154,7 @@ void test_loop(const char* url) {
       }
     } while (audio_data != NULL);
 
-    msleep(1);
+    milisleep(1.0);
   }
 
   player_destroy(vpc);

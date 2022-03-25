@@ -26,8 +26,7 @@ double get_time_in_seconds() {
   return seconds;
 }
 
-/* msleep(): Sleep for the requested number of milliseconds. */
-int msleep(double msec) {
+int milisleep(double msec) {
   struct timespec ts;
   int res;
 
@@ -38,26 +37,6 @@ int msleep(double msec) {
 
   ts.tv_sec = (long)(msec / 1000.0);
   ts.tv_nsec = (long)((fmod(msec, 1000.0)) * 1000000.0);
-
-  do {
-    res = nanosleep(&ts, &ts);
-  } while (res && errno == EINTR);
-
-  return res;
-}
-
-/* msleep(): Sleep for the requested number of microseconds. */
-int usleep(long usec) {
-  struct timespec ts;
-  int res;
-
-  if (usec < 0) {
-    errno = EINVAL;
-    return -1;
-  }
-
-  ts.tv_sec = usec / 1000000;
-  ts.tv_nsec = (usec % 1000000) * 1000;
 
   do {
     res = nanosleep(&ts, &ts);

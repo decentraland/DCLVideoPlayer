@@ -53,7 +53,7 @@ void *_run_decoder(void *arg) {
     }
 
     if (has_frame == 0)
-      msleep(0.1);
+      milisleep(0.1);
   }
 
   decoder_destroy(vpc->dectx);
