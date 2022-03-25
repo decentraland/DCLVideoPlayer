@@ -11,6 +11,8 @@
 #include <libswresample/swresample.h>
 #include <pthread.h>
 
+//#define USING_HW
+
 typedef struct DecoderContext {
     // AVFormatContext holds the header information from the format (Container)
     // Allocating memory for this component
@@ -46,6 +48,11 @@ typedef struct DecoderContext {
     int audio_frequency;
     int audio_channels;
     pthread_mutex_t lock;
+
+#ifdef USING_HW
+  AVBufferRef *hw_device_ctx;
+  AVFrame *sw_frame;
+#endif
 } DecoderContext;
 
 typedef struct ProcessOutput {

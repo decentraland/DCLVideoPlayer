@@ -29,9 +29,7 @@ void *_run_decoder(void *arg) {
 
   vpc->state = StateReady;
 
-  int has_frame = 0;
   while (vpc->thread_running == 1 && quitting_app == 0) {
-    has_frame = 0;
     int res = -1;
     int queue_has_space = safe_queue_is_full(vpc->video_queue) == 0 && safe_queue_is_full(vpc->audio_queue) == 0;
 
@@ -42,18 +40,15 @@ void *_run_decoder(void *arg) {
         if (processOutput.videoFrame) {
           safe_queue_push(vpc->video_queue, processOutput.videoFrame, processOutput.loop_id);
           logging("%d video_count=%d buffering=%d loop_id=%d", vpc->id, vpc->video_queue->count, vpc->buffering, processOutput.loop_id);
-          has_frame = 1;
         }
 
         if (processOutput.audioFrame) {
           safe_queue_push(vpc->audio_queue, processOutput.audioFrame, 0);
-          has_frame = 1;
         }
       }
+    } else {
+      milisleep(1.0);
     }
-
-    if (has_frame == 0)
-      milisleep(0.1);
   }
 
   decoder_destroy(vpc->dectx);

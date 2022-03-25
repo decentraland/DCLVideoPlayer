@@ -68,7 +68,7 @@ void test_format(const char *test_name, const char *url, uint8_t expected_state)
 
   int video_frames = 0;
   int audio_frames = 0;
-  while (audio_frames < 128 || video_frames < 128) {
+  while (audio_frames < 128 || video_frames < 128 || 1==1) {
 
     void *release_ptr = NULL;
     do {
@@ -96,10 +96,10 @@ void test_format(const char *test_name, const char *url, uint8_t expected_state)
 
     milisleep(1);
 
-    if (get_time_in_seconds() >= timeout) {
+    /*if (get_time_in_seconds() >= timeout) {
       logging("timeout error");
       assert(0 == 1);
-    }
+    }*/
   }
 
   player_destroy(vpc);
@@ -170,6 +170,11 @@ int main() {
 
   decoder_print_hw_available();
 
+  test_format("HTTP+MP4", "http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",
+              StateReady);
+
+  return 0;
+
   test_id_generator();
 
   //test_loop("https://player.vimeo.com/external/691621058.m3u8?s=a2aa7b62cd0431537ed53cd699109e46d0de8575");
@@ -185,9 +190,6 @@ int main() {
   test_format("HTTPS+HLS 1", "https://player.vimeo.com/external/552481870.m3u8?s=c312c8533f97e808fccc92b0510b085c8122a875", StateReady);
 
   test_format("HTTPS+HLS 2", "https://player.vimeo.com/external/575854261.m3u8?s=d09797037b7f4f1013d337c04836d1e998ad9c80", StateReady);
-
-  test_format("HTTP+MP4", "http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",
-              StateReady);
 
   test_format("HTTPS+MP4", "https://storage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4", StateReady);
 

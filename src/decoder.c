@@ -7,6 +7,24 @@
 #include <libavutil/imgutils.h>
 
 static int lastID = 0;
+static enum AVPixelFormat hw_pix_fmt = AV_PIX_FMT_NONE;
+
+#ifdef USING_HW
+
+static enum AVPixelFormat get_hw_format(AVCodecContext *ctx,
+                                        const enum AVPixelFormat *pix_fmts) {
+  const enum AVPixelFormat *p;
+
+  for (p = pix_fmts; *p != -1; p++) {
+    if (*p == hw_pix_fmt)
+      return *p;
+  }
+
+  logging("Failed to get HW surface format.");
+  return AV_PIX_FMT_NONE;
+}
+
+#endif
 
 void decoder_replay(DecoderContext *dectx) {
   int res = 0;
@@ -21,7 +39,7 @@ void decoder_replay(DecoderContext *dectx) {
   avcodec_flush_buffers(dectx->audio_avcc);
 }
 
-int fill_stream_info(DecoderContext *dectx, AVStream *avs, AVCodec **avc, AVCodecContext **avcc) {
+int fill_stream_info(DecoderContext *dectx, AVStream *avs, AVCodec **avc, AVCodecContext **avcc, uint8_t hw) {
   *avc = (AVCodec *) avcodec_find_decoder(avs->codecpar->codec_id);
   if (!*avc) {
     logging("%d failed to find the codec", dectx->id);
@@ -39,10 +57,48 @@ int fill_stream_info(DecoderContext *dectx, AVStream *avs, AVCodec **avc, AVCode
     return -1;
   }
 
+#ifdef USING_HW
+  enum AVHWDeviceType type = AV_HWDEVICE_TYPE_D3D11VA;
+  if (hw == 1) {
+    dectx->hw_device_ctx = NULL;
+    for (int i = 0;; i++) {
+      const AVCodecHWConfig *config = avcodec_get_hw_config((*avc), i);
+      if (!config) {
+        logging("Decoder %s does not support device type %s.\n",
+                (*avc)->name, av_hwdevice_get_type_name(type));
+        return -1;
+      }
+      if (config->methods & AV_CODEC_HW_CONFIG_METHOD_HW_DEVICE_CTX &&
+          config->device_type == type) {
+        if (hw_pix_fmt == AV_PIX_FMT_NONE) {
+          hw_pix_fmt = config->pix_fmt;
+          break;
+        } else if (hw_pix_fmt != config->pix_fmt) {
+          logging("ERROR hw format %s != %s", av_get_pix_fmt_name(hw_pix_fmt), av_get_pix_fmt_name(config->pix_fmt));
+          return -1;
+        }
+      }
+    }
+  }
+#endif
+
   if (avcodec_open2(*avcc, *avc, NULL) < 0) {
     logging("%d failed to open codec", dectx->id);
     return -1;
   }
+
+#ifdef USING_HW
+  if (hw == 1) {
+    (*avcc)->get_format = get_hw_format;
+
+    if (av_hwdevice_ctx_create(&dectx->hw_device_ctx, type,
+                               NULL, NULL, 0) < 0) {
+      logging("Failed to create specified HW device.");
+      return -1;
+    }
+    (*avcc)->hw_device_ctx = av_buffer_ref(dectx->hw_device_ctx);
+  }
+#endif
   return 0;
 }
 
@@ -83,7 +139,7 @@ int prepare_decoder(DecoderContext *dectx) {
       dectx->video_avs = dectx->av_format_ctx->streams[i];
       dectx->video_index = i;
 
-      if (fill_stream_info(dectx, dectx->video_avs, &dectx->video_avc, &dectx->video_avcc)) { return -1; }
+      if (fill_stream_info(dectx, dectx->video_avs, &dectx->video_avc, &dectx->video_avcc, 1)) { return -1; }
 
       dectx->video_frame_rate = av_q2d(dectx->video_avs->r_frame_rate);
 
@@ -99,7 +155,7 @@ int prepare_decoder(DecoderContext *dectx) {
       dectx->audio_avs = dectx->av_format_ctx->streams[i];
       dectx->audio_index = i;
 
-      if (fill_stream_info(dectx, dectx->audio_avs, &dectx->audio_avc, &dectx->audio_avcc)) { return -1; }
+      if (fill_stream_info(dectx, dectx->audio_avs, &dectx->audio_avc, &dectx->audio_avcc, 0)) { return -1; }
       prepare_swr(dectx);
 
       if (dectx->audio_avs->duration != AV_NOPTS_VALUE) {
@@ -124,7 +180,11 @@ DecoderContext *decoder_create(const char *url, uint8_t id, uint8_t convert_to_r
   dectx->id = id;
   dectx->loop_id = 0;
   dectx->last_loop_id = 0;
+#ifdef USING_HW
+  dectx->convert_to_rgb = 0;
+#else
   dectx->convert_to_rgb = convert_to_rgb;
+#endif
   logging("%d initializing all the containers, codecs and protocols.", dectx->id);
 
   dectx->loop = 0;
@@ -193,12 +253,22 @@ DecoderContext *decoder_create(const char *url, uint8_t id, uint8_t convert_to_r
     goto free;
   }
 
+#ifdef USING_HW
+  // https://ffmpeg.org/doxygen/trunk/structAVFrame.html
+  dectx->sw_frame = av_frame_alloc();
+  if (!dectx->sw_frame) {
+    logging("%d failed to allocated memory for SW AVFrame", dectx->id);
+    goto free;
+  }
+#endif
+
   dectx->av_frame = pFrame;
   dectx->av_packet = pPacket;
 
-  logging("%d video_duration=%lf audio_duration=%lf fps=%lf", dectx->id, dectx->video_duration_in_sec, dectx->audio_duration_in_sec, dectx->video_frame_rate);
+  logging("%d video_duration=%lf audio_duration=%lf fps=%lf", dectx->id, dectx->video_duration_in_sec,
+          dectx->audio_duration_in_sec, dectx->video_frame_rate);
   return dectx;
-free:
+  free:
   decoder_destroy(dectx);
   return NULL;
 }
@@ -302,6 +372,11 @@ int decode_packet(DecoderContext *dectx, AVCodecContext *avcc, AVPacket *av_pack
 }
 
 AVFrame *process_video_frame(DecoderContext *dectx, AVFrame *frame, int frameNumber) {
+#ifdef USING_HW
+  AVFrame *new_frame = av_frame_alloc();
+  dectx->av_frame = new_frame; // Don't convert, create a new frame for decoding and use current frame to process (it will be released by the player)
+  return frame;
+#else
   if (dectx->convert_to_rgb == 1) {
     return convert_to_rgb24(frame, frameNumber);
   } else {
@@ -309,6 +384,7 @@ AVFrame *process_video_frame(DecoderContext *dectx, AVFrame *frame, int frameNum
     dectx->av_frame = new_frame; // Don't convert, create a new frame for decoding and use current frame to process (it will be released by the player)
     return frame;
   }
+#endif
 }
 
 AVFrame *process_audio_frame(DecoderContext *dectx) {
@@ -401,6 +477,12 @@ void decoder_destroy(DecoderContext *dectx) {
     avcodec_free_context(&dectx->video_avcc);
   if (dectx->audio_avcc)
     avcodec_free_context(&dectx->audio_avcc);
+#ifdef USING_HW
+  if (dectx->hw_device_ctx)
+    av_buffer_unref(&dectx->hw_device_ctx);
+
+  av_frame_free(&dectx->sw_frame);
+#endif
 
   pthread_mutex_destroy(&dectx->lock);
 
@@ -415,7 +497,7 @@ void decoder_destroy(DecoderContext *dectx) {
 void decoder_print_hw_available() {
   enum AVHWDeviceType type = AV_HWDEVICE_TYPE_NONE;
   fprintf(stderr, "Available device types:");
-  while((type = av_hwdevice_iterate_types(type)) != AV_HWDEVICE_TYPE_NONE)
+  while ((type = av_hwdevice_iterate_types(type)) != AV_HWDEVICE_TYPE_NONE)
     fprintf(stderr, " %s", av_hwdevice_get_type_name(type));
   fprintf(stderr, "\n");
 }
