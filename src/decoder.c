@@ -221,9 +221,9 @@ static void save_ppm_frame(unsigned char *buf, int wrap, int xsize, int ysize, c
 #endif
 
 
-AVFrame *convert_to_rgb24(AVFrame *srcFrame, int frameNumber) {
-  int width = srcFrame->width;
-  int height = srcFrame->height;
+AVFrame *convert_to_rgb24(DecoderContext *dectx, AVFrame *srcFrame) {
+  int width = dectx->video_avcc->width;
+  int height = dectx->video_avcc->height;
 
   enum AVPixelFormat dstFormat = AV_PIX_FMT_RGB24;
   int bufSize = av_image_get_buffer_size(dstFormat, width, height, 1);
@@ -256,8 +256,9 @@ AVFrame *convert_to_rgb24(AVFrame *srcFrame, int frameNumber) {
   dstFrame->height = srcFrame->height;
 
 #ifdef SAVE_FILE_TO_FILE
+  int frame_number = dectx->video_avcc->frame_number;
   char frame_filename[1024];
-  snprintf(frame_filename, sizeof(frame_filename), "out/%s-%d.ppm", "frame", frameNumber);
+  snprintf(frame_filename, sizeof(frame_filename), "out/%s-%d.ppm", "frame", frame_number);
   save_ppm_frame(dstFrame->data[0], dstFrame->linesize[0], dstFrame->width, dstFrame->height, frame_filename);
 #endif
   return dstFrame;
@@ -301,9 +302,9 @@ int decode_packet(DecoderContext *dectx, AVCodecContext *avcc, AVPacket *av_pack
   return -1;
 }
 
-AVFrame *process_video_frame(DecoderContext *dectx, AVFrame *frame, int frameNumber) {
+AVFrame *process_video_frame(DecoderContext *dectx, AVFrame *frame) {
   if (dectx->convert_to_rgb == 1) {
-    return convert_to_rgb24(frame, frameNumber);
+    return convert_to_rgb24(dectx, frame);
   } else {
     AVFrame *new_frame = av_frame_alloc();
     dectx->av_frame = new_frame; // Don't convert, create a new frame for decoding and use current frame to process (it will be released by the player)
@@ -344,7 +345,7 @@ int decoder_process_frame(DecoderContext *dectx, ProcessOutput *processOutput) {
         pthread_mutex_unlock(&dectx->lock);
         return -1;
       }
-      processOutput->videoFrame = process_video_frame(dectx, dectx->av_frame, dectx->video_avcc->frame_number);
+      processOutput->videoFrame = process_video_frame(dectx, dectx->av_frame);
       res = 0;
     } else if (dectx->av_packet->stream_index == dectx->audio_index) {
       //logging("[AUDIO] AVPacket->pts %" PRId64, dectx->av_packet->pts);

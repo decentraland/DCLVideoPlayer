@@ -208,7 +208,6 @@ void player_seek(MediaPlayerContext *vpc, float time) {
 
 double _internal_grab_video_frame(MediaPlayerContext *vpc, void **release_ptr, SafeQueueContext *queue, uint8_t **data, AVRational time_base) {
   AVFrame *frame = safe_queue_peek_front(queue);
-
   if (frame != NULL) {
     double time_in_sec = (double) (av_q2d(time_base) * (double) frame->best_effort_timestamp);
     double current_time_in_sec;
@@ -222,6 +221,7 @@ double _internal_grab_video_frame(MediaPlayerContext *vpc, void **release_ptr, S
     if (time_in_sec <= current_time_in_sec) {
 
       *release_ptr = frame;
+
       if (vpc->convert_to_rgb == 1) {
         data[0] = frame->data[0];
       } else {
