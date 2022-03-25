@@ -124,6 +124,7 @@ DecoderContext *decoder_create(const char *url, uint8_t id, uint8_t convert_to_r
   dectx->id = id;
   dectx->loop_id = 0;
   dectx->last_loop_id = 0;
+  dectx->convert_to_rgb = convert_to_rgb;
   logging("%d initializing all the containers, codecs and protocols.", dectx->id);
 
   dectx->loop = 0;
