@@ -62,4 +62,6 @@ void decoder_destroy(DecoderContext *dectx);
 
 void decoder_seek(DecoderContext *dectx, float timeInSeconds);
 
+void decoder_print_hw_available();
+
 #endif

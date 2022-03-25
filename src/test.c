@@ -168,6 +168,8 @@ void test_seek() {
 int main() {
   logging("DCLVideoPlayer Tests");
 
+  decoder_print_hw_available();
+
   test_id_generator();
 
   //test_loop("https://player.vimeo.com/external/691621058.m3u8?s=a2aa7b62cd0431537ed53cd699109e46d0de8575");

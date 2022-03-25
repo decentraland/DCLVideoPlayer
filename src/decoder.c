@@ -411,3 +411,11 @@ void decoder_destroy(DecoderContext *dectx) {
 
   free(dectx);
 }
+
+void decoder_print_hw_available() {
+  enum AVHWDeviceType type = AV_HWDEVICE_TYPE_NONE;
+  printf("Available device types:");
+  while((type = av_hwdevice_iterate_types(type)) != AV_HWDEVICE_TYPE_NONE)
+    printf(" %s", av_hwdevice_get_type_name(type));
+  printf("\n");
+}
