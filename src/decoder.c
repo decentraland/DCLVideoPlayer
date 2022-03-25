@@ -8,6 +8,19 @@
 
 static int lastID = 0;
 
+void decoder_replay(DecoderContext *dectx) {
+  int res = 0;
+  float time_in_seconds = 0;
+  do {
+    uint64_t timestamp = (uint64_t) time_in_seconds * AV_TIME_BASE;
+    res = avformat_seek_file(dectx->av_format_ctx, -1, INT64_MIN, timestamp, INT64_MAX, AVSEEK_FLAG_ANY);
+    logging("%d decoder seek res=%d message=%s time_in_seconds=%f", dectx->id, res, av_err2str(res), time_in_seconds);
+    time_in_seconds += 0.1;
+  } while (res != 0);
+  avcodec_flush_buffers(dectx->video_avcc);
+  avcodec_flush_buffers(dectx->audio_avcc);
+}
+
 int fill_stream_info(DecoderContext *dectx, AVStream *avs, AVCodec **avc, AVCodecContext **avcc) {
   *avc = (AVCodec *) avcodec_find_decoder(avs->codecpar->codec_id);
   if (!*avc) {
@@ -271,7 +284,7 @@ int decode_packet(DecoderContext *dectx, AVCodecContext *avcc, AVPacket *av_pack
     }
 
     if (response >= 0) {
-      /*logging(
+      logging(
           "Frame %d (type=%c, size=%d bytes, format=%d) pts %d key_frame %d [DTS %d]",
           avcc->frame_number,
           av_get_picture_type_char(av_frame->pict_type),
@@ -280,7 +293,7 @@ int decode_packet(DecoderContext *dectx, AVCodecContext *avcc, AVPacket *av_pack
           av_frame->pts,
           av_frame->key_frame,
           av_frame->coded_picture_number
-      );*/
+      );
       return 0;
     }
   }
@@ -324,7 +337,7 @@ int decoder_process_frame(DecoderContext *dectx, ProcessOutput *processOutput) {
 
       double timeInSec = (double) (av_q2d(dectx->video_avs->time_base) *
                                    (double) dectx->av_frame->best_effort_timestamp);
-      //logging("[VIDEO] AVPacket frame-number=%d timeInSec=%lf", dectx->video_avcc->frame_number, timeInSec);
+      logging("[VIDEO] AVPacket frame-number=%d timeInSec=%lf", dectx->video_avcc->frame_number, timeInSec);
       res = decode_packet(dectx, dectx->video_avcc, dectx->av_packet, dectx->av_frame);
       if (res < 0) {
         pthread_mutex_unlock(&dectx->lock);
@@ -352,8 +365,8 @@ int decoder_process_frame(DecoderContext *dectx, ProcessOutput *processOutput) {
         logging("%d decoder: loop", dectx->id);
         dectx->loop_id = dectx->last_loop_id;
 
-        pthread_mutex_unlock(&dectx->lock); // Avoid deadlock
-        decoder_seek(dectx, 0.0f);
+        decoder_replay(dectx);
+        pthread_mutex_unlock(&dectx->lock);
       }
     } else {
       pthread_mutex_unlock(&dectx->lock);
@@ -365,8 +378,12 @@ int decoder_process_frame(DecoderContext *dectx, ProcessOutput *processOutput) {
 
 void decoder_seek(DecoderContext *dectx, float timeInSeconds) {
   pthread_mutex_lock(&dectx->lock);
+
   uint64_t timestamp = (uint64_t) timeInSeconds * AV_TIME_BASE;
-  av_seek_frame(dectx->av_format_ctx, -1, timestamp, AVSEEK_FLAG_BACKWARD);
+  int res = avformat_seek_file(dectx->av_format_ctx, -1, INT64_MIN, timestamp, INT64_MAX, AVSEEK_FLAG_BACKWARD);
+  logging("%d decoder seek res=%d message=%s", dectx->id, res, av_err2str(res));
+  avcodec_flush_buffers(dectx->video_avcc);
+  avcodec_flush_buffers(dectx->audio_avcc);
   pthread_mutex_unlock(&dectx->lock);
 }
 

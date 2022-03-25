@@ -107,7 +107,7 @@ void test_format(const char *test_name, const char *url, uint8_t expected_state)
 }
 
 void test_loop(const char* url) {
-  double timeout = get_time_in_seconds() + 30.0;
+  logging("test_loop");
   MediaPlayerContext *vpc = player_create(url, 1);
 
   while (player_get_state(vpc) == StateLoading) {
@@ -125,9 +125,10 @@ void test_loop(const char* url) {
   player_play(vpc);
   player_seek(vpc, 77.0);
 
+  int loop_id = vpc->last_loop_id;
   int video_frames = 0;
   int audio_frames = 0;
-  while (1) {
+  while (vpc->last_loop_id != loop_id) {
 
     void *release_ptr = NULL;
     do {
@@ -136,7 +137,7 @@ void test_loop(const char* url) {
       if (videoData[0] != NULL) {
         player_release_frame(vpc, release_ptr);
         ++video_frames;
-        logging("frames: %d", video_frames);
+        logging("frames: %d %f", video_frames, player_get_playback_position(vpc));
       } else {
         break;
       }
@@ -154,11 +155,6 @@ void test_loop(const char* url) {
     } while (audio_data != NULL);
 
     msleep(1);
-
-    if (get_time_in_seconds() >= timeout) {
-      logging("timeout error");
-      assert(0 == 1);
-    }
   }
 
   player_destroy(vpc);
@@ -174,13 +170,13 @@ int main() {
 
   test_id_generator();
 
-  test_loop("https://player.vimeo.com/external/691621058.m3u8?s=a2aa7b62cd0431537ed53cd699109e46d0de8575");
+  //test_loop("https://player.vimeo.com/external/691621058.m3u8?s=a2aa7b62cd0431537ed53cd699109e46d0de8575");
 
-  return 0;
+  // Unspecified pixel format
+  //test_format("HTTPS+MP4", "https://peer-lb.decentraland.org/content/contents/QmWhxckWadLR3qQE5VqBBKDyt5Uj6bkDwRSAEfJ2vU1iZR", StateReady);
 
-  //test_format("HTTPS+?", "https://peer-lb.decentraland.org/content/contents/QmWhxckWadLR3qQE5VqBBKDyt5Uj6bkDwRSAEfJ2vU1iZR", StateReady);
-
-  test_format("HTTPS+?", "https://eu-nl-012.worldcast.tv/dancetelevisionthree/dancetelevisionthree.m3u8", StateReady);
+  // Stream too slow...
+  //test_format("HTTPS+?", "https://eu-nl-012.worldcast.tv/dancetelevisionthree/dancetelevisionthree.m3u8", StateReady);
 
   test_decoder();
 
