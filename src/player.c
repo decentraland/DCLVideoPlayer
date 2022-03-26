@@ -161,6 +161,7 @@ void player_set_paused(MediaPlayerContext *vpc, int paused) {
 }
 
 void player_set_loop(MediaPlayerContext *vpc, int loop) {
+  if (vpc->dectx == NULL) return;
   vpc->loop = loop;
   vpc->dectx->loop = loop;
 }
@@ -170,6 +171,7 @@ int player_has_loop(MediaPlayerContext *vpc) {
 }
 
 float player_get_length(MediaPlayerContext *vpc) {
+  if (vpc->dectx == NULL) return 0.0;
   double ctx_duration = (double) (vpc->dectx->av_format_ctx->duration) / AV_TIME_BASE;
   double vs_duration = vpc->dectx->video_avs->duration;
   return vpc->dectx->video_avs->duration <= 0 ? ctx_duration : vs_duration * av_q2d(vpc->dectx->video_avs->time_base);
@@ -190,6 +192,7 @@ void player_set_playback_rate(MediaPlayerContext *vpc, double playback_rate) {
 }
 
 void player_seek(MediaPlayerContext *vpc, float time) {
+  if (vpc->dectx == NULL) return;
   logging("%d player_seek %f", vpc->id, time);
 
   if (vpc->first_frame == 1) {
@@ -250,7 +253,7 @@ double _internal_grab_video_frame(MediaPlayerContext *vpc, void **release_ptr, S
 }
 
 double player_grab_video_frame(MediaPlayerContext *vpc, void **release_ptr, uint8_t **data) {
-
+  if (vpc->dectx == NULL) return 0.0;
   if (vpc->buffering == 1) {
     if (safe_queue_is_full(vpc->video_queue) == 1 || safe_queue_is_full(vpc->audio_queue) == 1) {
       logging("%d end buffering", vpc->id);
@@ -282,6 +285,7 @@ double player_grab_video_frame(MediaPlayerContext *vpc, void **release_ptr, uint
 }
 
 double player_grab_audio_frame(MediaPlayerContext *vpc, void **release_ptr, uint8_t **data, int *frame_size) {
+  if (vpc->dectx == NULL) return 0.0;
   if (vpc->playing == 1 && vpc->buffering == 0) {
     AVFrame *frame = safe_queue_pop_front(vpc->audio_queue);
     if (frame != NULL) {
@@ -304,11 +308,13 @@ void player_release_frame(MediaPlayerContext *vpc, void *release_ptr) {
 }
 
 void player_get_video_format(MediaPlayerContext *vpc, int *width, int *height) {
+  if (vpc->dectx == NULL) return;
   *width = vpc->dectx->video_avcc->width;
   *height = vpc->dectx->video_avcc->height;
 }
 
 void player_get_audio_format(MediaPlayerContext *vpc, int *frequency, int *channels) {
+  if (vpc->dectx == NULL) return;
   *frequency = vpc->dectx->audio_frequency;
   *channels = vpc->dectx->audio_channels;
 }
