@@ -5,6 +5,7 @@
 #include <libswscale/swscale.h>
 #include <libavutil/avutil.h>
 #include <libavutil/imgutils.h>
+#include <libavutil/cpu.h>
 
 static int lastID = 0;
 
@@ -125,6 +126,7 @@ DecoderContext *decoder_create(const char *url, uint8_t id, uint8_t convert_to_r
   dectx->loop_id = 0;
   dectx->last_loop_id = 0;
   dectx->convert_to_rgb = convert_to_rgb;
+  dectx->cpu_align = av_cpu_max_align();
   logging("%d initializing all the containers, codecs and protocols.", dectx->id);
 
   dectx->loop = 0;
@@ -221,47 +223,52 @@ static void save_ppm_frame(unsigned char *buf, int wrap, int xsize, int ysize, c
 #endif
 
 
-AVFrame *convert_to_rgb24(DecoderContext *dectx, AVFrame *srcFrame) {
+AVFrame *convert_to_rgb24(DecoderContext *dectx, AVFrame *src_frame) {
   int width = dectx->video_avcc->width;
   int height = dectx->video_avcc->height;
 
-  enum AVPixelFormat dstFormat = AV_PIX_FMT_RGB24;
-  int bufSize = av_image_get_buffer_size(dstFormat, width, height, 1);
-  AVBufferRef *buf = av_buffer_alloc(bufSize);
+  enum AVPixelFormat dst_format = AV_PIX_FMT_RGB24;
+  av_image_get_buffer_size(dst_format, width, height, dectx->cpu_align);
 
-  AVFrame *dstFrame = av_frame_alloc();
+  AVFrame *dst_frame = av_frame_alloc();
 
-  av_frame_copy_props(dstFrame, srcFrame);
-  dstFrame->format = dstFormat;
-  dstFrame->buf[0] = buf;
+  dst_frame->format = dst_format;
+  dst_frame->width = width;
+  dst_frame->height = height;
 
-  av_image_fill_arrays(dstFrame->data, dstFrame->linesize, buf->data, dstFormat, width, height, 1);
+  av_frame_get_buffer(dst_frame, dectx->cpu_align);
 
   struct SwsContext *conversion = sws_getContext(width,
                                                  height,
-                                                 srcFrame->format,
+                                                 src_frame->format,
                                                  width,
                                                  height,
-                                                 dstFormat,
+                                                 dst_format,
                                                  SWS_FAST_BILINEAR,
                                                  NULL,
                                                  NULL,
                                                  NULL);
-  sws_scale(conversion, (const uint8_t **) srcFrame->data, srcFrame->linesize, 0, height, dstFrame->data,
-            dstFrame->linesize);
+  sws_scale(conversion, (const uint8_t **) src_frame->data, src_frame->linesize, 0, height, dst_frame->data,
+                          dst_frame->linesize);
   sws_freeContext(conversion);
 
-  dstFrame->format = dstFormat;
-  dstFrame->width = srcFrame->width;
-  dstFrame->height = srcFrame->height;
+  dst_frame->format = dst_format;
+  dst_frame->width = src_frame->width;
+  dst_frame->height = src_frame->height;
+
+  if (dst_frame->data[0] == NULL) {
+    logging("ERROR bad rgb conversion");
+    av_frame_free(&dst_frame);
+    return NULL;
+  }
 
 #ifdef SAVE_FILE_TO_FILE
   int frame_number = dectx->video_avcc->frame_number;
   char frame_filename[1024];
   snprintf(frame_filename, sizeof(frame_filename), "out/%s-%d.ppm", "frame", frame_number);
-  save_ppm_frame(dstFrame->data[0], dstFrame->linesize[0], dstFrame->width, dstFrame->height, frame_filename);
+  save_ppm_frame(dst_frame->data[0], dst_frame->linesize[0], dst_frame->width, dst_frame->height, frame_filename);
 #endif
-  return dstFrame;
+  return dst_frame;
 }
 
 int decode_packet(DecoderContext *dectx, AVCodecContext *avcc, AVPacket *av_packet, AVFrame *av_frame) {

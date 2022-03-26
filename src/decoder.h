@@ -25,6 +25,7 @@ typedef struct DecoderContext {
     AVCodecContext *audio_avcc;
     int video_index;
     int audio_index;
+    int cpu_align;
 
     // https://ffmpeg.org/doxygen/trunk/structAVFrame.html
     AVFrame *av_frame;

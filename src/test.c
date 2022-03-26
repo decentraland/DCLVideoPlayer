@@ -195,6 +195,8 @@ int main() {
 
   test_format("HTTP+OGV", "http://techslides.com/demos/sample-videos/small.ogv", StateReady);
 
+  test_format("HTTPS+HLS EX-CRASH", "https://player.vimeo.com/external/691415562.m3u8?s=65096902279bbd8bb19bf9e2b9391c4c7e510402", StateReady);
+
   test_format("Invalid URL", "", StateError);
 
   return 0;

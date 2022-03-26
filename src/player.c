@@ -227,6 +227,8 @@ double _internal_grab_video_frame(MediaPlayerContext *vpc, void **release_ptr, S
 
       if (vpc->convert_to_rgb == 1) {
         data[0] = frame->data[0];
+        data[1] = NULL;
+        data[2] = NULL;
       } else {
         data[0] = frame->data[0];
         data[1] = frame->data[1];
