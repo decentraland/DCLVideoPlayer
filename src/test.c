@@ -60,6 +60,7 @@ void test_format(const char *test_name, const char *url, uint8_t expected_state)
   assert(player_get_state(vpc) == expected_state);
 
   if (player_get_state(vpc) != StateReady) {
+    player_destroy(vpc);
     return;
   }
 
@@ -118,6 +119,7 @@ void test_loop(const char* url) {
   assert(player_get_state(vpc) == StateReady);
 
   if (player_get_state(vpc) != StateReady) {
+    player_destroy(vpc);
     return;
   }
 
