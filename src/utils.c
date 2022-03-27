@@ -26,17 +26,18 @@ double get_time_in_seconds() {
   return seconds;
 }
 
-int milisleep(double msec) {
+int milisleep(long msec) {
   struct timespec ts;
   int res;
 
-  if (msec < 0) {
+  if (msec < 0)
+  {
     errno = EINVAL;
     return -1;
   }
 
-  ts.tv_sec = (long)(msec / 1000.0);
-  ts.tv_nsec = (long)((fmod(msec, 1000.0)) * 1000000.0);
+  ts.tv_sec = msec / 1000;
+  ts.tv_nsec = (msec % 1000) * 1000000;
 
   do {
     res = nanosleep(&ts, &ts);

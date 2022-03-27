@@ -23,6 +23,10 @@ typedef struct DecoderContext {
     AVStream *audio_avs;
     AVCodecContext *video_avcc;
     AVCodecContext *audio_avcc;
+    uint8_t eof;
+    uint8_t video_enabled;
+    uint8_t audio_enabled;
+
     int video_index;
     int audio_index;
     int cpu_align;

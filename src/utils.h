@@ -6,7 +6,7 @@
 double get_time_in_seconds();
 
 /* milisleep(): Sleep for the requested number of milliseconds. */
-int milisleep(double msec);
+int milisleep(long msec);
 
 uint8_t get_next_id(uint8_t* id);
 

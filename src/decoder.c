@@ -17,9 +17,13 @@ void decoder_replay(DecoderContext *dectx) {
     res = avformat_seek_file(dectx->av_format_ctx, -1, INT64_MIN, timestamp, INT64_MAX, AVSEEK_FLAG_ANY);
     logging("%d decoder seek res=%d message=%s time_in_seconds=%f", dectx->id, res, av_err2str(res), time_in_seconds);
     time_in_seconds += 0.1;
-  } while (res != 0);
-  avcodec_flush_buffers(dectx->video_avcc);
-  avcodec_flush_buffers(dectx->audio_avcc);
+  } while (res != 0 && time_in_seconds < 5.0);
+
+  if (dectx->video_avcc != NULL)
+    avcodec_flush_buffers(dectx->video_avcc);
+
+  if (dectx->audio_avcc != NULL)
+    avcodec_flush_buffers(dectx->audio_avcc);
 }
 
 int fill_stream_info(DecoderContext *dectx, AVStream *avs, AVCodec **avc, AVCodecContext **avcc) {
@@ -81,6 +85,7 @@ int prepare_decoder(DecoderContext *dectx) {
   logging("%d preparing decoder", dectx->id);
   for (int i = 0; i < dectx->av_format_ctx->nb_streams; i++) {
     if (dectx->av_format_ctx->streams[i]->codecpar->codec_type == AVMEDIA_TYPE_VIDEO) {
+      dectx->video_enabled = 1;
       dectx->video_avs = dectx->av_format_ctx->streams[i];
       dectx->video_index = i;
 
@@ -97,6 +102,7 @@ int prepare_decoder(DecoderContext *dectx) {
       }
 
     } else if (dectx->av_format_ctx->streams[i]->codecpar->codec_type == AVMEDIA_TYPE_AUDIO) {
+      dectx->audio_enabled = 1;
       dectx->audio_avs = dectx->av_format_ctx->streams[i];
       dectx->audio_index = i;
 
@@ -122,11 +128,17 @@ int prepare_decoder(DecoderContext *dectx) {
 
 DecoderContext *decoder_create(const char *url, uint8_t id, uint8_t convert_to_rgb) {
   DecoderContext *dectx = (DecoderContext *) calloc(1, sizeof(DecoderContext));
+
+  dectx->eof = 0;
+  dectx->audio_index = -1;
+  dectx->video_index = -1;
   dectx->id = id;
   dectx->loop_id = 0;
   dectx->last_loop_id = 0;
   dectx->convert_to_rgb = convert_to_rgb;
   dectx->cpu_align = 1;//av_cpu_max_align();
+  dectx->video_enabled = 0;
+  dectx->audio_enabled = 0;
   logging("%d initializing all the containers, codecs and protocols.", dectx->id);
 
   dectx->loop = 0;
@@ -342,7 +354,8 @@ int decoder_process_frame(DecoderContext *dectx, ProcessOutput *processOutput) {
   // fill the Packet with data from the Stream
   // https://ffmpeg.org/doxygen/trunk/group__lavf__decoding.html#ga4fdb3084415a82e3810de6ee60e46a61
   if (av_read_frame(dectx->av_format_ctx, dectx->av_packet) >= 0) {
-    if (dectx->av_packet->stream_index == dectx->video_index) {
+    logging("dectx->video_enabled=%d dectx->audio_enabled=%d", dectx->video_enabled, dectx->audio_enabled);
+    if (dectx->av_packet->stream_index == dectx->video_index && dectx->video_enabled) {
       if (dectx->loop_id == dectx->last_loop_id) {
         dectx->loop_id = get_next_id(&dectx->last_loop_id);
       }
@@ -358,7 +371,7 @@ int decoder_process_frame(DecoderContext *dectx, ProcessOutput *processOutput) {
       }
       processOutput->videoFrame = process_video_frame(dectx, dectx->av_frame);
       res = 0;
-    } else if (dectx->av_packet->stream_index == dectx->audio_index) {
+    } else if (dectx->av_packet->stream_index == dectx->audio_index && dectx->audio_enabled) {
       //logging("[AUDIO] AVPacket->pts %" PRId64, dectx->av_packet->pts);
       res = decode_packet(dectx, dectx->audio_avcc, dectx->av_packet, dectx->av_frame);
       if (res < 0) {
@@ -379,9 +392,12 @@ int decoder_process_frame(DecoderContext *dectx, ProcessOutput *processOutput) {
         dectx->loop_id = dectx->last_loop_id;
 
         decoder_replay(dectx);
-        pthread_mutex_unlock(&dectx->lock);
+      } else {
+        dectx->eof = 1;
       }
+      pthread_mutex_unlock(&dectx->lock);
     } else {
+      dectx->eof = 1;
       pthread_mutex_unlock(&dectx->lock);
     }
   }

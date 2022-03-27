@@ -45,24 +45,31 @@ void *_run_decoder(void *arg) {
   vpc->state = StateReady;
 
   while (vpc->thread_running == 1 && quitting_app == 0) {
-    int res = -1;
-    int queue_has_space = safe_queue_is_full(vpc->video_queue) == 0 && safe_queue_is_full(vpc->audio_queue) == 0;
+    if (vpc->dectx->eof == 0) {
+      int res = -1;
+      int queue_has_space = safe_queue_is_full(vpc->video_queue) == 0 && safe_queue_is_full(vpc->audio_queue) == 0;
 
-    if (queue_has_space) {
-      ProcessOutput processOutput;
-      res = decoder_process_frame(vpc->dectx, &processOutput);
-      if (res == 0) {
-        if (processOutput.videoFrame) {
-          safe_queue_push(vpc->video_queue, processOutput.videoFrame, processOutput.loop_id);
-          logging("%d video_count=%d buffering=%d loop_id=%d", vpc->id, vpc->video_queue->count, vpc->buffering, processOutput.loop_id);
-        }
+      if (queue_has_space) {
+        ProcessOutput processOutput;
+        res = decoder_process_frame(vpc->dectx, &processOutput);
+        if (res == 0) {
+          if (processOutput.videoFrame) {
+            safe_queue_push(vpc->video_queue, processOutput.videoFrame, processOutput.loop_id);
+            logging("%d video_count=%d buffering=%d loop_id=%d", vpc->id, vpc->video_queue->count, vpc->buffering,
+                    processOutput.loop_id);
+          }
 
-        if (processOutput.audioFrame) {
-          safe_queue_push(vpc->audio_queue, processOutput.audioFrame, 0);
+          if (processOutput.audioFrame) {
+            safe_queue_push(vpc->audio_queue, processOutput.audioFrame, 0);
+          }
         }
+      } else {
+        milisleep(1);
       }
     } else {
-      milisleep(1.0);
+      if (vpc->playing == 1)
+        vpc->playing = 0;
+      milisleep(10);
     }
   }
 
@@ -143,6 +150,13 @@ void player_play(MediaPlayerContext *vpc) {
   if (vpc->playing == 1) return;
   vpc->start_time = get_time_in_seconds_with_rate(vpc) - vpc->video_progress_time;
   vpc->playing = 1;
+
+  if (vpc->dectx) {
+    if (vpc->dectx->eof == 1) {
+      player_seek(vpc, 0.0);
+      vpc->dectx->eof = 0;
+    }
+  }
   logging("%d player_play", vpc->id);
 }
 
