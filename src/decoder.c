@@ -228,15 +228,19 @@ AVFrame *convert_to_rgb24(DecoderContext *dectx, AVFrame *src_frame) {
   int height = dectx->video_avcc->height;
 
   enum AVPixelFormat dst_format = AV_PIX_FMT_RGB24;
-  av_image_get_buffer_size(dst_format, width, height, dectx->cpu_align);
-
   AVFrame *dst_frame = av_frame_alloc();
+
+  av_frame_copy_props(dst_frame, src_frame);
 
   dst_frame->format = dst_format;
   dst_frame->width = width;
   dst_frame->height = height;
 
   av_frame_get_buffer(dst_frame, dectx->cpu_align);
+
+  // For some reason `av_frame_get_buffer` is calculating the linesize incorrectly. We do here manually.
+  av_image_fill_linesizes(dst_frame->linesize, dst_format, width);
+  dst_frame->linesize[0] = FFALIGN(dst_frame->linesize[0], dectx->cpu_align);
 
   struct SwsContext *conversion = sws_getContext(width,
                                                  height,
