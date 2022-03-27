@@ -3,6 +3,7 @@ project(dclvideoplayer C)
 
 set(CMAKE_C_STANDARD 17)
 
+option(SDL_VIEWER "Build SDL Viewer" OFF)
 option(STATIC_LIB "Build only static library" OFF)
 set(installPath ${CMAKE_SYSTEM_NAME}-${CMAKE_HOST_SYSTEM_PROCESSOR})
 
@@ -81,5 +82,12 @@ add_test(NAME
             --test-command "${CMAKE_CTEST_COMMAND}")
 add_executable(test src/test.c)
 target_link_libraries(test PRIVATE ${PROJECT_NAME})
+
+if(SDL_VIEWER)
+    find_package(SDL2 REQUIRED)
+    add_executable(viewer src/viewer.c)
+    target_link_libraries(viewer PRIVATE ${PROJECT_NAME} ${SDL2_LIBRARIES})
+    target_include_directories(viewer PRIVATE ${SDL2_INCLUDE_DIRS})
+endif()
 
 install(TARGETS ${PROJECT_NAME} DESTINATION ${installPath})
