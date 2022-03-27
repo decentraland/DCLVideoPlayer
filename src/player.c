@@ -11,6 +11,23 @@ double get_time_in_seconds_with_rate(MediaPlayerContext *vpc) {
   return ((get_time_in_seconds() * vpc->playback_rate) - vpc->playback_reference_with_rate) + vpc->playback_reference;
 }
 
+void _internal_destroy(MediaPlayerContext *vpc) {
+  if (vpc->dectx != NULL)
+    decoder_destroy(vpc->dectx);
+  safe_queue_destroy(&vpc->video_queue);
+  safe_queue_destroy(&vpc->audio_queue);
+  free(vpc->url);
+  free(vpc);
+}
+
+void _internal_destroy_or_set_ready(MediaPlayerContext *vpc) {
+  if (vpc->ready_to_destroy == 1) {
+    _internal_destroy(vpc);
+  } else {
+    vpc->ready_to_destroy = 1;
+  }
+}
+
 void *_run_decoder(void *arg) {
   MediaPlayerContext *vpc = arg;
   const char *url = vpc->url;
@@ -19,9 +36,7 @@ void *_run_decoder(void *arg) {
 
   if (vpc->dectx == NULL) {
     vpc->state = StateError;
-    safe_queue_destroy(&vpc->video_queue);
-    safe_queue_destroy(&vpc->audio_queue);
-    free(vpc->url);
+    _internal_destroy_or_set_ready(vpc);
     logging("%d thread exit with error", vpc->id);
     pthread_exit(NULL);
     return NULL;
@@ -51,11 +66,7 @@ void *_run_decoder(void *arg) {
     }
   }
 
-  decoder_destroy(vpc->dectx);
-  safe_queue_destroy(&vpc->video_queue);
-  safe_queue_destroy(&vpc->audio_queue);
-  free(vpc->url);
-  free(vpc);
+  _internal_destroy_or_set_ready(vpc);
 
   logging("%d thread exit correctly", vpc->id);
   pthread_exit(NULL);
@@ -83,6 +94,7 @@ MediaPlayerContext *player_create(const char *url, uint8_t convert_to_rgb) {
   logging("player_create %s", url);
   MediaPlayerContext *vpc = (MediaPlayerContext *) calloc(1, sizeof(MediaPlayerContext));
 
+  vpc->ready_to_destroy = 0;
   vpc->convert_to_rgb = convert_to_rgb;
   vpc->state = StateLoading;
   vpc->dectx = NULL;
@@ -124,6 +136,7 @@ MediaPlayerContext *player_create(const char *url, uint8_t convert_to_rgb) {
 void player_destroy(MediaPlayerContext *vpc) {
   logging("%d player_destroy", vpc->id);
   vpc->thread_running = 0;
+  _internal_destroy_or_set_ready(vpc);
 }
 
 void player_play(MediaPlayerContext *vpc) {

@@ -126,7 +126,7 @@ DecoderContext *decoder_create(const char *url, uint8_t id, uint8_t convert_to_r
   dectx->loop_id = 0;
   dectx->last_loop_id = 0;
   dectx->convert_to_rgb = convert_to_rgb;
-  dectx->cpu_align = av_cpu_max_align();
+  dectx->cpu_align = 1;//av_cpu_max_align();
   logging("%d initializing all the containers, codecs and protocols.", dectx->id);
 
   dectx->loop = 0;
@@ -239,8 +239,8 @@ AVFrame *convert_to_rgb24(DecoderContext *dectx, AVFrame *src_frame) {
   av_frame_get_buffer(dst_frame, dectx->cpu_align);
 
   // For some reason `av_frame_get_buffer` is calculating the linesize incorrectly. We do here manually.
-  av_image_fill_linesizes(dst_frame->linesize, dst_format, width);
-  dst_frame->linesize[0] = FFALIGN(dst_frame->linesize[0], dectx->cpu_align);
+  //av_image_fill_linesizes(dst_frame->linesize, dst_format, width);
+  //dst_frame->linesize[0] = FFALIGN(dst_frame->linesize[0], dectx->cpu_align);
 
   struct SwsContext *conversion = sws_getContext(width,
                                                  height,

@@ -30,6 +30,7 @@ typedef struct MediaPlayerContext {
     uint8_t thread_running;
     uint8_t first_frame;
     uint8_t last_loop_id;
+    uint8_t ready_to_destroy;
 
     double playback_rate;
     double playback_reference;
