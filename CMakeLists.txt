@@ -5,12 +5,17 @@ set(CMAKE_C_STANDARD 17)
 
 option(SDL_VIEWER "Build SDL Viewer" OFF)
 option(STATIC_LIB "Build only static library" OFF)
+option(VERBOSE "Build with VERBOSE" OFF)
 set(installPath ${CMAKE_SYSTEM_NAME}-${CMAKE_HOST_SYSTEM_PROCESSOR})
 
 if(STATIC_LIB)
     set(CMAKE_FIND_LIBRARY_SUFFIXES ".a")
 endif()
 message(CMAKE_FIND_LIBRARY_SUFFIXES ${CMAKE_FIND_LIBRARY_SUFFIXES})
+
+if(VERBOSE)
+    add_definitions(-DVERBOSE)
+endif()
 
 add_library(${PROJECT_NAME} SHARED src/decoder.c src/player.c src/safeframequeue.c src/threadqueue.c src/utils.c)
 

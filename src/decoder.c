@@ -273,7 +273,7 @@ AVFrame *convert_to_rgb24(DecoderContext *dectx, AVFrame *src_frame) {
   dst_frame->height = src_frame->height;
 
   if (dst_frame->data[0] == NULL) {
-    logging("ERROR bad rgb conversion");
+    logging("%d ERROR bad rgb conversion", dectx->id);
     av_frame_free(&dst_frame);
     return NULL;
   }
@@ -309,6 +309,7 @@ int decode_packet(DecoderContext *dectx, AVCodecContext *avcc, AVPacket *av_pack
     }
 
     if (response >= 0) {
+#ifdef VERBOSE
       logging(
           "Frame %d (type=%c, size=%d bytes, format=%d) pts %d key_frame %d [DTS %d]",
           avcc->frame_number,
@@ -319,6 +320,7 @@ int decode_packet(DecoderContext *dectx, AVCodecContext *avcc, AVPacket *av_pack
           av_frame->key_frame,
           av_frame->coded_picture_number
       );
+#endif
       return 0;
     }
   }
@@ -354,7 +356,6 @@ int decoder_process_frame(DecoderContext *dectx, ProcessOutput *processOutput) {
   // fill the Packet with data from the Stream
   // https://ffmpeg.org/doxygen/trunk/group__lavf__decoding.html#ga4fdb3084415a82e3810de6ee60e46a61
   if (av_read_frame(dectx->av_format_ctx, dectx->av_packet) >= 0) {
-    logging("dectx->video_enabled=%d dectx->audio_enabled=%d", dectx->video_enabled, dectx->audio_enabled);
     if (dectx->av_packet->stream_index == dectx->video_index && dectx->video_enabled) {
       if (dectx->loop_id == dectx->last_loop_id) {
         dectx->loop_id = get_next_id(&dectx->last_loop_id);
@@ -363,7 +364,7 @@ int decoder_process_frame(DecoderContext *dectx, ProcessOutput *processOutput) {
 
       double timeInSec = (double) (av_q2d(dectx->video_avs->time_base) *
                                    (double) dectx->av_frame->best_effort_timestamp);
-      logging("[VIDEO] AVPacket frame-number=%d timeInSec=%lf", dectx->video_avcc->frame_number, timeInSec);
+
       res = decode_packet(dectx, dectx->video_avcc, dectx->av_packet, dectx->av_frame);
       if (res < 0) {
         pthread_mutex_unlock(&dectx->lock);
@@ -372,7 +373,7 @@ int decoder_process_frame(DecoderContext *dectx, ProcessOutput *processOutput) {
       processOutput->videoFrame = process_video_frame(dectx, dectx->av_frame);
       res = 0;
     } else if (dectx->av_packet->stream_index == dectx->audio_index && dectx->audio_enabled) {
-      //logging("[AUDIO] AVPacket->pts %" PRId64, dectx->av_packet->pts);
+
       res = decode_packet(dectx, dectx->audio_avcc, dectx->av_packet, dectx->av_frame);
       if (res < 0) {
         pthread_mutex_unlock(&dectx->lock);
