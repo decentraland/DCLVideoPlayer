@@ -73,6 +73,10 @@ double player_grab_audio_frame(MediaPlayerContext *vpc, void **release_ptr, uint
 
 void player_release_frame(MediaPlayerContext *vpc, void *release_ptr);
 
+int player_video_is_enabled(MediaPlayerContext *vpc);
+
+int player_audio_is_enabled(MediaPlayerContext *vpc);
+
 void player_get_video_format(MediaPlayerContext *vpc, int *width, int *height);
 
 void player_get_audio_format(MediaPlayerContext *vpc, int *frequency, int *channels);

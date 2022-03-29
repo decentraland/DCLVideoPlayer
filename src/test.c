@@ -47,7 +47,7 @@ void test_decoder() {
   decoder_destroy(dectx);
 }
 
-void test_format(const char *test_name, const char *url, uint8_t expected_state) {
+void test_format_ex(const char *test_name, const char *url, uint8_t expected_state, int max_video_frames, int max_audio_frames) {
   logging(test_name);
   double timeout = get_time_in_seconds() + 30.0;
   MediaPlayerContext *vpc = player_create(url, 1);
@@ -66,10 +66,9 @@ void test_format(const char *test_name, const char *url, uint8_t expected_state)
 
   player_set_loop(vpc, 1);
   player_play(vpc);
-
-  int video_frames = 0;
   int audio_frames = 0;
-  while (audio_frames < 128 || video_frames < 128) {
+  int video_frames = 0;
+  while (audio_frames < max_audio_frames && video_frames < max_video_frames) {
 
     void *release_ptr = NULL;
     do {
@@ -78,7 +77,7 @@ void test_format(const char *test_name, const char *url, uint8_t expected_state)
       if (videoData[0] != NULL) {
         player_release_frame(vpc, release_ptr);
         ++video_frames;
-        logging("frames: %d", video_frames);
+        logging("video frames: %d", video_frames);
       } else {
         break;
       }
@@ -92,6 +91,7 @@ void test_format(const char *test_name, const char *url, uint8_t expected_state)
       if (audio_data != NULL) {
         player_release_frame(vpc, release_ptr);
         ++audio_frames;
+        logging("audio frames: %d", audio_frames);
       }
     } while (audio_data != NULL);
 
@@ -105,6 +105,10 @@ void test_format(const char *test_name, const char *url, uint8_t expected_state)
 
   player_destroy(vpc);
   player_stop_all_threads();
+}
+
+void test_format(const char *test_name, const char *url, uint8_t expected_state) {
+  test_format_ex(test_name, url, expected_state, 128, 128);
 }
 
 void test_loop(const char* url) {
@@ -167,36 +171,17 @@ void test_seek() {
 
 }
 
+void test_stop_all_threads_without_creating_a_player()
+{
+  player_stop_all_threads();
+}
+
 int main() {
   logging("DCLVideoPlayer Tests");
 
-  /*
-  test_format("TEST", "https://player.vimeo.com/external/552481870.m3u8?s=c312c8533f97e808fccc92b0510b085c8122a875", StateReady);
-  test_format("TEST", "https://vod.dcl.guru/ethereumbuilding/index.m3u8", StateReady);
-  test_format("TEST", "https://player.vimeo.com/external/691246715.m3u8?s=b737d04dfc8eb41807655f40e0a320f4459b7fd9", StateReady);
-  test_format("TEST", "https://player.vimeo.com/external/691245304.m3u8?s=e71379e85190b8126ade179ef46992bbf398b4dc", StateReady);
-  test_format("TEST", "https://vod.dcl.guru/cashlabs/2/polygonal_dressing_1.mp4", StateReady);
-  test_format("TEST", "https://vod.dcl.guru/cashlabs/2/polygonal_dressing_2.mp4", StateReady);
-  test_format("TEST", "https://vod.dcl.guru/cashlabs/2/auroboros_1.mp4", StateReady);
-  test_format("TEST", "https://vod.dcl.guru/cashlabs/2/jason_e_1.mp4", StateReady);
-  test_format("TEST", "https://vod.dcl.guru/cashlabs/2/antoni_tudisco_1.mp4", StateReady);
-  test_format("TEST", "https://vod.dcl.guru/cashlabs/2/antoni_tudisco_2.mp4", StateReady);
-  test_format("TEST", "https://vod.dcl.guru/cashlabs/2/thedematerialised_1.mp4", StateReady);
-  test_format("TEST", "https://vod.dcl.guru/cashlabs/2/avavav_1.mp4", StateReady);
-  test_format("TEST", "https://vod.dcl.guru/cashlabs/2/krista_kim_1.mp4", StateReady);
-  test_format("TEST", "https://vod.dcl.guru/cashlabs/3/metagolden_1.mp4", StateReady);
-  test_format("TEST", "https://vod.dcl.guru/cashlabs/3/metagolden_2.mp4", StateReady);
-  test_format("TEST", "https://vod.dcl.guru/cashlabs/3/marjan_m_1.mp4", StateReady);
-  test_format("TEST", "https://vod.dcl.guru/cashlabs/3/marjan_m_2.mp4", StateReady);
-  test_format("TEST", "https://vod.dcl.guru/cashlabs/3/alex_box_1.mp4", StateReady);
-  test_format("TEST", "https://vod.dcl.guru/cashlabs/3/nip.mp4", StateReady);
+  test_stop_all_threads_without_creating_a_player();
 
-  // Get stuck
-  test_format("TEST", "https://peer-lb.decentraland.org/content/contents/bafybeibbwqzr4vpim6xmpvo4yyxkotxn6cucffyyowcmo5n2ngooj565qa", StateReady);
-  test_format("TEST", "https://player.vimeo.com/external/691387948.m3u8?s=0c2f0f7f74716ce5f5e5f0a352142dd00fc1eca3", StateReady);
-  test_format("TEST", "https://dclstreams.com/hosted/live/cryptovalleycc/index.m3u8", StateReady);
-  test_format("TEST", "https://video.dcl.guru/live/visual/index.m3u8", StateReady);
-   */
+  test_format_ex("MP3", "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3", StateReady, 0, 128);
 
   decoder_print_hw_available();
 
@@ -228,6 +213,35 @@ int main() {
   test_format("HTTPS+HLS EX-CRASH", "https://player.vimeo.com/external/691415562.m3u8?s=65096902279bbd8bb19bf9e2b9391c4c7e510402", StateReady);
 
   test_format("Invalid URL", "", StateError);
+
+  // More tests
+  /*
+  test_format("TEST", "https://player.vimeo.com/external/552481870.m3u8?s=c312c8533f97e808fccc92b0510b085c8122a875", StateReady);
+  test_format("TEST", "https://vod.dcl.guru/ethereumbuilding/index.m3u8", StateReady);
+  test_format("TEST", "https://player.vimeo.com/external/691246715.m3u8?s=b737d04dfc8eb41807655f40e0a320f4459b7fd9", StateReady);
+  test_format("TEST", "https://player.vimeo.com/external/691245304.m3u8?s=e71379e85190b8126ade179ef46992bbf398b4dc", StateReady);
+  test_format("TEST", "https://vod.dcl.guru/cashlabs/2/polygonal_dressing_1.mp4", StateReady);
+  test_format("TEST", "https://vod.dcl.guru/cashlabs/2/polygonal_dressing_2.mp4", StateReady);
+  test_format("TEST", "https://vod.dcl.guru/cashlabs/2/auroboros_1.mp4", StateReady);
+  test_format("TEST", "https://vod.dcl.guru/cashlabs/2/jason_e_1.mp4", StateReady);
+  test_format("TEST", "https://vod.dcl.guru/cashlabs/2/antoni_tudisco_1.mp4", StateReady);
+  test_format("TEST", "https://vod.dcl.guru/cashlabs/2/antoni_tudisco_2.mp4", StateReady);
+  test_format("TEST", "https://vod.dcl.guru/cashlabs/2/thedematerialised_1.mp4", StateReady);
+  test_format("TEST", "https://vod.dcl.guru/cashlabs/2/avavav_1.mp4", StateReady);
+  test_format("TEST", "https://vod.dcl.guru/cashlabs/2/krista_kim_1.mp4", StateReady);
+  test_format("TEST", "https://vod.dcl.guru/cashlabs/3/metagolden_1.mp4", StateReady);
+  test_format("TEST", "https://vod.dcl.guru/cashlabs/3/metagolden_2.mp4", StateReady);
+  test_format("TEST", "https://vod.dcl.guru/cashlabs/3/marjan_m_1.mp4", StateReady);
+  test_format("TEST", "https://vod.dcl.guru/cashlabs/3/marjan_m_2.mp4", StateReady);
+  test_format("TEST", "https://vod.dcl.guru/cashlabs/3/alex_box_1.mp4", StateReady);
+  test_format("TEST", "https://vod.dcl.guru/cashlabs/3/nip.mp4", StateReady);
+
+  // Get stuck
+  test_format("TEST", "https://peer-lb.decentraland.org/content/contents/bafybeibbwqzr4vpim6xmpvo4yyxkotxn6cucffyyowcmo5n2ngooj565qa", StateReady);
+  test_format("TEST", "https://player.vimeo.com/external/691387948.m3u8?s=0c2f0f7f74716ce5f5e5f0a352142dd00fc1eca3", StateReady);
+  test_format("TEST", "https://dclstreams.com/hosted/live/cryptovalleycc/index.m3u8", StateReady);
+  test_format("TEST", "https://video.dcl.guru/live/visual/index.m3u8", StateReady);
+   */
 
   return 0;
 }

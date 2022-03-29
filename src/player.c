@@ -11,6 +11,17 @@ double get_time_in_seconds_with_rate(MediaPlayerContext *vpc) {
   return ((get_time_in_seconds() * vpc->playback_rate) - vpc->playback_reference_with_rate) + vpc->playback_reference;
 }
 
+void _check_end_buffering(MediaPlayerContext *vpc)
+{
+  if (vpc->buffering == 1) {
+    if (safe_queue_is_full(vpc->video_queue) == 1 || safe_queue_is_full(vpc->audio_queue) == 1) {
+      logging("%d end buffering", vpc->id);
+      vpc->start_time = get_time_in_seconds_with_rate(vpc) - vpc->video_progress_time;
+      vpc->buffering = 0;
+    }
+  }
+}
+
 void _internal_destroy(MediaPlayerContext *vpc) {
   if (vpc->dectx != NULL)
     decoder_destroy(vpc->dectx);
@@ -55,8 +66,10 @@ void *_run_decoder(void *arg) {
         if (res == 0) {
           if (processOutput.videoFrame) {
             safe_queue_push(vpc->video_queue, processOutput.videoFrame, processOutput.loop_id);
+#ifdef VERBOSE
             logging("%d video_count=%d buffering=%d loop_id=%d", vpc->id, vpc->video_queue->count, vpc->buffering,
                     processOutput.loop_id);
+#endif
           }
 
           if (processOutput.audioFrame) {
@@ -82,8 +95,14 @@ void *_run_decoder(void *arg) {
 
 void player_stop_all_threads() {
   logging("player_stop_all_threads!");
+  if (thread_queue == NULL)
+    return;
+
   quitting_app = 1;
   while (1) {
+    if (queue_is_empty(thread_queue) == 1) {
+      break;
+    }
     pthread_t thread = queue_pop_front(thread_queue);
     if (thread != NULL_THREAD) {
       logging("start join on thread");
@@ -283,13 +302,9 @@ double _internal_grab_video_frame(MediaPlayerContext *vpc, void **release_ptr, S
 
 double player_grab_video_frame(MediaPlayerContext *vpc, void **release_ptr, uint8_t **data) {
   if (vpc->dectx == NULL) return 0.0;
-  if (vpc->buffering == 1) {
-    if (safe_queue_is_full(vpc->video_queue) == 1 || safe_queue_is_full(vpc->audio_queue) == 1) {
-      logging("%d end buffering", vpc->id);
-      vpc->start_time = get_time_in_seconds_with_rate(vpc) - vpc->video_progress_time;
-      vpc->buffering = 0;
-    }
-  }
+  if (vpc->dectx->video_enabled == 0) return 0.0;
+
+  _check_end_buffering(vpc);
 
   if (vpc->playing == 1 && vpc->buffering == 0) {
     double current_frame_time = 0.0;
@@ -315,8 +330,15 @@ double player_grab_video_frame(MediaPlayerContext *vpc, void **release_ptr, uint
 
 double player_grab_audio_frame(MediaPlayerContext *vpc, void **release_ptr, uint8_t **data, int *frame_size) {
   if (vpc->dectx == NULL) return 0.0;
+  if (vpc->dectx->audio_enabled == 0) return 0.0;
+
+  if (vpc->dectx->video_enabled == 0) {
+    _check_end_buffering(vpc);
+  }
+
   if (vpc->playing == 1 && vpc->buffering == 0) {
     AVFrame *frame = safe_queue_pop_front(vpc->audio_queue);
+
     if (frame != NULL) {
       *release_ptr = frame;
       *data = frame->data[0];
@@ -336,14 +358,28 @@ void player_release_frame(MediaPlayerContext *vpc, void *release_ptr) {
   av_frame_free(&frame);
 }
 
+int player_video_is_enabled(MediaPlayerContext *vpc)
+{
+  if (vpc->dectx == NULL) return 0;
+  return vpc->dectx->video_enabled;
+}
+
+int player_audio_is_enabled(MediaPlayerContext *vpc)
+{
+  if (vpc->dectx == NULL) return 0;
+  return vpc->dectx->audio_enabled;
+}
+
 void player_get_video_format(MediaPlayerContext *vpc, int *width, int *height) {
   if (vpc->dectx == NULL) return;
+  if (vpc->dectx->video_enabled == 0) return;
   *width = vpc->dectx->video_avcc->width;
   *height = vpc->dectx->video_avcc->height;
 }
 
 void player_get_audio_format(MediaPlayerContext *vpc, int *frequency, int *channels) {
   if (vpc->dectx == NULL) return;
+  if (vpc->dectx->audio_enabled == 0) return;
   *frequency = vpc->dectx->audio_frequency;
   *channels = vpc->dectx->audio_channels;
 }
