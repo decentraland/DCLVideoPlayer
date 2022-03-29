@@ -170,6 +170,8 @@ void test_seek() {
 int main() {
   logging("DCLVideoPlayer Tests");
 
+  test_format("MP3", "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3", StateReady);
+
   /*
   test_format("TEST", "https://player.vimeo.com/external/552481870.m3u8?s=c312c8533f97e808fccc92b0510b085c8122a875", StateReady);
   test_format("TEST", "https://vod.dcl.guru/ethereumbuilding/index.m3u8", StateReady);

@@ -283,6 +283,8 @@ double _internal_grab_video_frame(MediaPlayerContext *vpc, void **release_ptr, S
 
 double player_grab_video_frame(MediaPlayerContext *vpc, void **release_ptr, uint8_t **data) {
   if (vpc->dectx == NULL) return 0.0;
+  if (vpc->dectx->video_enabled == 0) return 0.0;
+
   if (vpc->buffering == 1) {
     if (safe_queue_is_full(vpc->video_queue) == 1 || safe_queue_is_full(vpc->audio_queue) == 1) {
       logging("%d end buffering", vpc->id);
@@ -315,6 +317,8 @@ double player_grab_video_frame(MediaPlayerContext *vpc, void **release_ptr, uint
 
 double player_grab_audio_frame(MediaPlayerContext *vpc, void **release_ptr, uint8_t **data, int *frame_size) {
   if (vpc->dectx == NULL) return 0.0;
+  if (vpc->dectx->audio_enabled == 0) return 0.0;
+
   if (vpc->playing == 1 && vpc->buffering == 0) {
     AVFrame *frame = safe_queue_pop_front(vpc->audio_queue);
     if (frame != NULL) {
