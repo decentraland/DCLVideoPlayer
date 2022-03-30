@@ -63,6 +63,7 @@ void test_format_ex(const char *test_name, const char *url, uint8_t expected_sta
     player_destroy(vpc);
     return;
   }
+  milisleep(10);
 
   player_set_loop(vpc, 1);
   player_play(vpc);
@@ -213,6 +214,8 @@ int main() {
   test_format("HTTPS+HLS EX-CRASH", "https://player.vimeo.com/external/691415562.m3u8?s=65096902279bbd8bb19bf9e2b9391c4c7e510402", StateReady);
 
   test_format("Invalid URL", "", StateError);
+
+  test_format_ex("JPEG", "https://ironapeclub.com/wp-content/uploads/2022/01/ironape-club-poster.jpg", StateReady, 0, 128);
 
   // More tests
   /*

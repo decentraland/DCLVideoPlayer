@@ -171,7 +171,7 @@ void player_play(MediaPlayerContext *vpc) {
   vpc->playing = 1;
 
   if (vpc->dectx) {
-    if (vpc->dectx->eof == 1) {
+    if (vpc->dectx->eof == 1 && safe_queue_is_empty(vpc->video_queue) && safe_queue_is_empty(vpc->audio_queue)) {
       player_seek(vpc, 0.0);
       vpc->dectx->eof = 0;
     }

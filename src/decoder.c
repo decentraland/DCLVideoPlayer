@@ -412,8 +412,11 @@ void decoder_seek(DecoderContext *dectx, float timeInSeconds) {
   uint64_t timestamp = (uint64_t) timeInSeconds * AV_TIME_BASE;
   int res = avformat_seek_file(dectx->av_format_ctx, -1, INT64_MIN, timestamp, INT64_MAX, AVSEEK_FLAG_BACKWARD);
   logging("%d decoder seek res=%d message=%s", dectx->id, res, av_err2str(res));
-  avcodec_flush_buffers(dectx->video_avcc);
-  avcodec_flush_buffers(dectx->audio_avcc);
+  if (dectx->video_avcc != NULL)
+    avcodec_flush_buffers(dectx->video_avcc);
+  if (dectx->audio_avcc != NULL)
+    avcodec_flush_buffers(dectx->audio_avcc);
+
   pthread_mutex_unlock(&dectx->lock);
 }
 
