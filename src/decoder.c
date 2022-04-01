@@ -356,7 +356,7 @@ int decoder_process_frame(DecoderContext *dectx, ProcessOutput *processOutput) {
   // fill the Packet with data from the Stream
   // https://ffmpeg.org/doxygen/trunk/group__lavf__decoding.html#ga4fdb3084415a82e3810de6ee60e46a61
   if (av_read_frame(dectx->av_format_ctx, dectx->av_packet) >= 0) {
-    if (dectx->av_packet->stream_index == dectx->video_index && dectx->video_enabled) {
+    if (dectx->av_packet->stream_index == dectx->video_index && dectx->video_enabled == 1) {
       if (dectx->loop_id == dectx->last_loop_id) {
         dectx->loop_id = get_next_id(&dectx->last_loop_id);
       }
@@ -372,7 +372,7 @@ int decoder_process_frame(DecoderContext *dectx, ProcessOutput *processOutput) {
       }
       processOutput->videoFrame = process_video_frame(dectx, dectx->av_frame);
       res = 0;
-    } else if (dectx->av_packet->stream_index == dectx->audio_index && dectx->audio_enabled) {
+    } else if (dectx->av_packet->stream_index == dectx->audio_index && dectx->audio_enabled == 1) {
 
       res = decode_packet(dectx, dectx->audio_avcc, dectx->av_packet, dectx->av_frame);
       if (res < 0) {

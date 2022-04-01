@@ -218,9 +218,13 @@ int player_has_loop(MediaPlayerContext *vpc) {
 
 float player_get_length(MediaPlayerContext *vpc) {
   if (vpc->dectx == NULL) return 0.0;
-  double ctx_duration = (double) (vpc->dectx->av_format_ctx->duration) / AV_TIME_BASE;
-  double vs_duration = vpc->dectx->video_avs->duration;
-  return vpc->dectx->video_avs->duration <= 0 ? ctx_duration : vs_duration * av_q2d(vpc->dectx->video_avs->time_base);
+  if (vpc->dectx->video_enabled == 1) {
+    return vpc->dectx->video_duration_in_sec;
+  } else if (vpc->dectx->audio_enabled == 1) {
+    return vpc->dectx->audio_duration_in_sec;
+  } else {
+    return 0.0;
+  }
 }
 
 float player_get_playback_position(MediaPlayerContext *vpc) {
