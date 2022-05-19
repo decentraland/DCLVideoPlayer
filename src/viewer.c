@@ -142,7 +142,7 @@ uint8_t init_sdl2()
 
 uint8_t init_player() {
 
-  const char* url = "https://player.vimeo.com/external/691415562.m3u8?s=65096902279bbd8bb19bf9e2b9391c4c7e510402";
+  const char* url = "https://theuniverse.club/live/consensys/index.m3u8";
   vpc = player_create(url, 1);
 
   while (player_get_state(vpc) == StateLoading) {
@@ -152,6 +152,7 @@ uint8_t init_player() {
   printf("player_get_state=%d\n", player_get_state(vpc));
 
   if (player_get_state(vpc) != StateReady) {
+    player_destroy(vpc);
     return -1;
   }
 

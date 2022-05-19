@@ -23,6 +23,7 @@ void _check_end_buffering(MediaPlayerContext *vpc)
 }
 
 void _internal_destroy(MediaPlayerContext *vpc) {
+  logging("%d internal destroy", vpc->id);
   if (vpc->dectx != NULL)
     decoder_destroy(vpc->dectx);
   safe_queue_destroy(&vpc->video_queue);
@@ -35,6 +36,7 @@ void _internal_destroy_or_set_ready(MediaPlayerContext *vpc) {
   if (vpc->ready_to_destroy == 1) {
     _internal_destroy(vpc);
   } else {
+    logging("%d ready to destroy", vpc->id);
     vpc->ready_to_destroy = 1;
   }
 }
